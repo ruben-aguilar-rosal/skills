@@ -6,6 +6,7 @@ import typer
 
 from skillsync import __version__
 from skillsync.config import ConfigError, load_config
+from skillsync.layout import discover_skills, read_skill
 
 app = typer.Typer(help="Mirror, security-scan, and agentically adapt upstream skills.")
 
@@ -35,6 +36,28 @@ def config_check() -> None:
 
     skill_count = sum(len(source.skills) for source in config.sources)
     typer.echo(f"{len(config.sources)} source(s), {skill_count} skill(s)")
+
+
+@app.command()
+def status(
+    root: Path = typer.Option(
+        Path("."), help="Repo root containing the skills/ directory."
+    ),
+) -> None:
+    """List skill folders under `skills/` and which files each has present."""
+    layouts = discover_skills(root)
+    if not layouts:
+        typer.echo("no skills found under skills/")
+        return
+
+    for layout in layouts:
+        files = read_skill(layout)
+        marks = (
+            f"adaptation={'✓' if files.adaptation is not None else '✗'} "
+            f"SKILL={'✓' if files.skill_md is not None else '✗'} "
+            f"generated={'✓' if files.generated_skill_md is not None else '✗'}"
+        )
+        typer.echo(f"{layout.name}: {marks}")
 
 
 if __name__ == "__main__":
