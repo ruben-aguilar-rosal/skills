@@ -36,4 +36,5 @@ Implement. Wire: consumed by sync.
 
 ## Verify & commit
 - `pytest -q` green; PR body includes raw diff + commands + flags; call order asserted.
-- Commit: `feat(p12): PR builder (gh port)`. Then P13 in a new session.
+- Commit: `feat(p12): PR builder (gh port)`.
+- Mark P12 ☑ in `RUNBOOK.md`'s progress tracker (separate `docs(p12): ...` commit). Then P13 in a new session.

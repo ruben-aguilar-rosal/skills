@@ -40,4 +40,5 @@ successful PR. Implement until all green.
 
 ## Verify & commit
 - `pytest -q` green across the full matrix; sha bump only on successful PR.
-- Commit: `feat(p13): sync pipeline end-to-end`. Then P14 in a new session.
+- Commit: `feat(p13): sync pipeline end-to-end`.
+- Mark P13 ☑ in `RUNBOOK.md`'s progress tracker (separate `docs(p13): ...` commit). Then P14 in a new session.

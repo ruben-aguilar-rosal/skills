@@ -29,4 +29,5 @@ failure blocks that skill's PR. Implement.
 
 ## Verify & commit
 - `pytest -q` green; validation failure blocks that skill's PR in both commands.
-- Commit: `feat(p15): regen & reprofile commands`. Then P16 in a new session.
+- Commit: `feat(p15): regen & reprofile commands`.
+- Mark P15 ☑ in `RUNBOOK.md`'s progress tracker (separate `docs(p15): ...` commit). Then P16 in a new session.

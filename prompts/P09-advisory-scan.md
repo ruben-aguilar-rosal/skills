@@ -30,4 +30,5 @@ Wire: consumed by sync (Step P13). Export from stages.
 
 ## Verify & commit
 - `pytest -q` green; malformed model output yields risk="high".
-- Commit: `feat(p09): advisory LLM scan`. Then P10 in a new session.
+- Commit: `feat(p09): advisory LLM scan`.
+- Mark P09 ☑ in `RUNBOOK.md`'s progress tracker (separate `docs(p09): ...` commit). Then P10 in a new session.

@@ -31,4 +31,5 @@ whether each has adaptation/SKILL/generated present. Test the command with CliRu
 
 ## Verify & commit
 - `pytest -q` green; `skillsync status` lists skill folders.
-- Commit: `feat(p04): skill layout & folder I/O`. Then P05 in a new session.
+- Commit: `feat(p04): skill layout & folder I/O`.
+- Mark P04 ☑ in `RUNBOOK.md`'s progress tracker (separate `docs(p04): ...` commit). Then P05 in a new session.

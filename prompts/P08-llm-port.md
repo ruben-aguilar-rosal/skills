@@ -34,4 +34,5 @@ Wire: infrastructure for Steps P09–P11.
 
 ## Verify & commit
 - `pytest -q` green; no test invokes real `claude`.
-- Commit: `feat(p08): LLM client port (claude -p)`. Then P09 in a new session.
+- Commit: `feat(p08): LLM client port (claude -p)`.
+- Mark P08 ☑ in `RUNBOOK.md`'s progress tracker (separate `docs(p08): ...` commit). Then P09 in a new session.

@@ -31,4 +31,5 @@ before drafting. Implement, reusing P06/P08/P10/P12 and the config layer.
 
 ## Verify & commit
 - `pytest -q` green; gate-fail stops before drafting; pin + PR created on success.
-- Commit: `feat(p14): add/onboarding command`. Then P15 in a new session.
+- Commit: `feat(p14): add/onboarding command`.
+- Mark P14 ☑ in `RUNBOOK.md`'s progress tracker (separate `docs(p14): ...` commit). Then P15 in a new session.

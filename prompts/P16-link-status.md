@@ -31,4 +31,5 @@ validate, detect; every command is reachable and covered by at least one CliRunn
 
 ## Verify & commit
 - `pytest -q` green; `skillsync --help` lists all 8 commands; link is idempotent.
-- Commit: `feat(p16): link & status commands`. Build complete.
+- Commit: `feat(p16): link & status commands`.
+- Mark P16 ☑ in `RUNBOOK.md`'s progress tracker (separate `docs(p16): ...` commit). Build complete.

@@ -32,4 +32,5 @@ function the command calls).
 
 ## Verify & commit
 - `pytest -q` green; `skillsync detect` prints a kind table.
-- Commit: `feat(p05): detect stage`. Then P06 in a new session.
+- Commit: `feat(p05): detect stage`.
+- Mark P05 ☑ in `RUNBOOK.md`'s progress tracker (separate `docs(p05): ...` commit). Then P06 in a new session.

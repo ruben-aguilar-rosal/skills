@@ -38,4 +38,5 @@ Do not wire into a CLI command yet — this is infrastructure consumed by Step P
 
 ## Verify & commit
 - `pytest -q` green (real-git test + fake-git contract test).
-- Commit: `feat(p03): git I/O port (real + fake)`. Then P04 in a new session.
+- Commit: `feat(p03): git I/O port (real + fake)`.
+- Mark P03 ☑ in `RUNBOOK.md`'s progress tracker (separate `docs(p03): ...` commit). Then P04 in a new session.

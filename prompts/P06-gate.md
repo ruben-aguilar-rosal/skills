@@ -39,4 +39,5 @@ package.
 
 ## Verify & commit
 - `pytest -q` green; all gate fixtures behave as specified.
-- Commit: `feat(p06): deterministic security gate`. Then P07 in a new session.
+- Commit: `feat(p06): deterministic security gate`.
+- Mark P06 ☑ in `RUNBOOK.md`'s progress tracker (separate `docs(p06): ...` commit). Then P07 in a new session.

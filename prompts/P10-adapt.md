@@ -34,4 +34,5 @@ Wire: consumed by sync/add/regen. Export.
 
 ## Verify & commit
 - `pytest -q` green; patch mode uses temperature 0 (asserted via FakeLLM record).
-- Commit: `feat(p10): adapt stage (patch-based)`. Then P11 in a new session.
+- Commit: `feat(p10): adapt stage (patch-based)`.
+- Mark P10 ☑ in `RUNBOOK.md`'s progress tracker (separate `docs(p10): ...` commit). Then P11 in a new session.

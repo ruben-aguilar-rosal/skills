@@ -31,4 +31,5 @@ verify failure appends a "⚠ hand-edit may not be preserved" flag to AdaptResul
 
 ## Verify & commit
 - `pytest -q` green; non-preserved edit produces the flag.
-- Commit: `feat(p11): drift detection, fold-back & verify`. Then P12 in a new session.
+- Commit: `feat(p11): drift detection, fold-back & verify`.
+- Mark P11 ☑ in `RUNBOOK.md`'s progress tracker (separate `docs(p11): ...` commit). Then P12 in a new session.

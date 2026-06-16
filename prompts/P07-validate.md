@@ -31,4 +31,5 @@ PASS/errors, exit code 1 on failure. CliRunner test against a `tmp_path` skill f
 
 ## Verify & commit
 - `pytest -q` green; `skillsync validate <name>` exits 1 on a broken skill.
-- Commit: `feat(p07): validate stage`. Then P08 in a new session.
+- Commit: `feat(p07): validate stage`.
+- Mark P07 ☑ in `RUNBOOK.md`'s progress tracker (separate `docs(p07): ...` commit). Then P08 in a new session.
