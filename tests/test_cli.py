@@ -2,11 +2,13 @@
 
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
-from skillsync import __version__
+from skillsync import __version__, cli
 from skillsync.cli import app
 from skillsync.layout import write_text
+from skillsync.testing.fakes import FakeGit
 
 RUNNER = CliRunner()
 
@@ -39,3 +41,30 @@ def test_status_reports_no_skills(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     assert "no skills" in result.stdout.lower()
+
+
+def test_detect_prints_kind_table_with_injected_fake(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`skillsync detect` prints a name → kind table using an injected `FakeGit`."""
+    git = FakeGit()
+    git.add_commit("sha1", {"skills/demo/SKILL.md": "# Demo\nfirst\n"})
+    git.add_commit("sha2", {"skills/demo/SKILL.md": "# Demo\nsecond\n"})
+    git.set_ref("main", "sha2")
+    monkeypatch.setattr(cli, "make_git", lambda: git)
+
+    config_path = tmp_path / "sources.yaml"
+    config_path.write_text(
+        "sources:\n"
+        "  - repo: owner/repo\n"
+        "    ref: main\n"
+        "    skills:\n"
+        "      - path: skills/demo\n"
+        "        synced_sha: sha1\n"
+    )
+
+    result = RUNNER.invoke(app, ["detect", "--config", str(config_path)])
+
+    assert result.exit_code == 0
+    assert "demo" in result.stdout
+    assert "changed" in result.stdout
