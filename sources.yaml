@@ -1,0 +1,7 @@
+sources:
+  - repo: mattpocock/skills
+    ref: main
+    skills:
+      - path: engineering/to-issues
+        synced_sha: null
+        hold: false
