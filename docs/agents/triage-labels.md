@@ -1,23 +1,17 @@
 # Triage Labels
 
-The skills speak in terms of five canonical triage roles. This file maps those roles to the
-actual vocabulary used in this repo's issue tracker (Jira project **TP**).
+The skills speak in terms of five canonical triage roles. In this repo, issues live as local
+markdown files (see `issue-tracker.md`), so triage state is recorded as a `Status:` line near
+the top of each issue file rather than as a label in an external tracker.
 
-| Canonical role    | In TP                   | Meaning                                  |
-| ----------------- | ----------------------- | ---------------------------------------- |
-| `needs-triage`    | label `needs-triage`    | Maintainer needs to evaluate this issue  |
-| `needs-info`      | label `needs-info`      | Waiting on reporter for more information |
-| `ready-for-agent` | label `ready-for-agent` | Fully specified, ready for an AFK agent  |
-| `ready-for-human` | label `ready-for-human` | Requires human implementation            |
-| `wontfix`         | **status** `Rejected`   | Will not be actioned                     |
+| Canonical role    | `Status:` value   | Meaning                                  |
+| ----------------- | ----------------- | ---------------------------------------- |
+| `needs-triage`    | `needs-triage`    | Maintainer needs to evaluate this issue  |
+| `needs-info`      | `needs-info`      | Waiting on reporter for more information |
+| `ready-for-agent` | `ready-for-agent` | Fully specified, ready for an AFK agent  |
+| `ready-for-human` | `ready-for-human` | Requires human implementation            |
+| `wontfix`         | `wontfix`         | Will not be actioned                     |
 
-Notes:
-
-- `wontfix` is a workflow **status transition**, not a label:
-  `jira issue move <KEY> "Rejected"`.
-- The other four are Jira **labels**: `jira issue edit <KEY> --label "<name>" --no-input`.
-  Jira creates labels on first use — no pre-configuration needed.
-
-When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the
-corresponding entry from this table. Edit the middle column to match whatever vocabulary you
-actually use.
+When a skill mentions a role (e.g. "apply the AFK-ready triage label"), set the issue file's
+`Status:` line to the corresponding value from this table. Edit the middle column if you want
+different strings.

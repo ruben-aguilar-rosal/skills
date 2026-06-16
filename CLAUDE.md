@@ -7,14 +7,14 @@ agentically adapt them to my stack. See `PLAN.md` for the design.
 
 ### Issue tracker
 
-Issues live in Jira project **TP** (Tech Platform), managed with the `jira` CLI. PRDs live
-in **TI** Product Discovery (Polaris), managed via the Atlassian MCP tools / REST. See
+Issues and PRDs live as local markdown files under `.scratch/<feature-slug>/`. See
 `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
-Four Jira labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`) plus
-`wontfix` → the `Rejected` status on TP. See `docs/agents/triage-labels.md`.
+Triage state is a `Status:` line in each issue file, using the five canonical role strings
+(`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See
+`docs/agents/triage-labels.md`.
 
 ### Domain docs
 
