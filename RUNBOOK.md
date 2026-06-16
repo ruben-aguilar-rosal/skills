@@ -48,7 +48,7 @@ don't attempt it until P12 is green.
 
 | Step | File | Task | Done |
 | ---- | ---- | ---- | ---- |
-| P01 | prompts/P01-scaffold.md | #1 | ☐ |
+| P01 | prompts/P01-scaffold.md | #1 | ☑ |
 | P02 | prompts/P02-config.md | #2 | ☐ |
 | P03 | prompts/P03-git-port.md | #3 | ☐ |
 | P04 | prompts/P04-layout.md | #4 | ☐ |
