@@ -6,10 +6,12 @@ import typer
 
 from skillsync import __version__
 from skillsync.config import ConfigError, load_config
-from skillsync.layout import discover_skills, read_skill
+from skillsync.layout import SkillLayout, discover_skills, read_skill
 from skillsync.ports.git import GitPort
 from skillsync.ports.git_cli import GitCli
 from skillsync.stages.detect import detect
+from skillsync.stages.gate import DEFAULT_MAX_FILE_BYTES
+from skillsync.stages.validate import validate_skill
 
 app = typer.Typer(help="Mirror, security-scan, and agentically adapt upstream skills.")
 
@@ -95,6 +97,34 @@ def detect_cmd(
     for change in changes:
         flag = "  ⚠ history rewritten" if change.rewritten_history else ""
         typer.echo(f"{change.name.ljust(width)}  {change.kind}{flag}")
+
+
+@app.command(name="validate")
+def validate_cmd(
+    name: str = typer.Argument(..., help="Skill folder name under skills/."),
+    root: Path = typer.Option(
+        Path("."), help="Repo root containing the skills/ directory."
+    ),
+    byte_cap: int = typer.Option(
+        DEFAULT_MAX_FILE_BYTES, "--byte-cap", help="Maximum SKILL.md size in bytes."
+    ),
+) -> None:
+    """Validate a skill's on-disk SKILL.md, printing PASS or the errors found."""
+    layout = SkillLayout.resolve(root, name)
+    skill_md_text = read_skill(layout).skill_md
+    if skill_md_text is None:
+        typer.echo(f"{name}: no SKILL.md found at {layout.skill_md_path}", err=True)
+        raise typer.Exit(code=1)
+
+    result = validate_skill(layout, skill_md_text, byte_cap)
+    if result.passed:
+        typer.echo(f"{name}: PASS")
+        return
+
+    typer.echo(f"{name}: FAIL", err=True)
+    for error in result.errors:
+        typer.echo(f"  - {error}", err=True)
+    raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":

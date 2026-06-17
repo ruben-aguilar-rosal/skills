@@ -68,3 +68,31 @@ def test_detect_prints_kind_table_with_injected_fake(
     assert result.exit_code == 0
     assert "demo" in result.stdout
     assert "changed" in result.stdout
+
+
+def test_validate_passes_for_well_formed_skill(tmp_path: Path) -> None:
+    """`skillsync validate` exits 0 and prints PASS for a loadable skill."""
+    skill_md = (
+        "---\nname: demo\ndescription: A demo skill.\n---\n\n# demo\nNothing to see.\n"
+    )
+    write_text(tmp_path / "skills" / "demo" / "SKILL.md", skill_md)
+
+    result = RUNNER.invoke(app, ["validate", "demo", "--root", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert "PASS" in result.stdout
+
+
+def test_validate_exits_one_for_broken_skill(tmp_path: Path) -> None:
+    """`skillsync validate` exits 1 and reports the error for a broken skill."""
+    # Frontmatter name does not match the folder, and a referenced file is missing.
+    skill_md = (
+        "---\nname: wrong\ndescription: Bad.\n---\n\n"
+        "# demo\nSee [the script](scripts/missing.sh).\n"
+    )
+    write_text(tmp_path / "skills" / "demo" / "SKILL.md", skill_md)
+
+    result = RUNNER.invoke(app, ["validate", "demo", "--root", str(tmp_path)])
+
+    assert result.exit_code == 1
+    assert "scripts/missing.sh" in result.output
