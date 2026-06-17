@@ -2,13 +2,19 @@
 
 `FakeGit` backs `GitPort` with a linear commit history and per-commit content
 snapshots, enough to exercise the ancestor/diff/listing logic the deterministic
-stages rely on — without touching disk or the network.
+stages rely on — without touching disk or the network. `FakeLLM` backs `LLMPort`
+with scripted, deterministic responses keyed by a prompt substring, recording
+every call so agentic stages can be tested without invoking real `claude`.
 """
 
 import difflib
+from dataclasses import dataclass
 from pathlib import Path
 
+import jsonschema
+
 from skillsync.ports.git import GitError
+from skillsync.ports.llm import LLMError, LLMResult
 
 _EMPTY_TREE = "<empty>"
 
@@ -92,3 +98,59 @@ class FakeGit:
             for path, content in self._snapshots[sha].items()
             if path.startswith(prefix)
         }
+
+
+@dataclass(frozen=True)
+class LLMCall:
+    """A single recorded `FakeLLM.complete` invocation."""
+
+    prompt: str
+    model: str
+    temperature: float
+    schema: dict | None
+
+
+class FakeLLM:
+    """`LLMPort` backed by scripted responses keyed by a prompt substring.
+
+    Each key is a substring; the first key found in the prompt selects the
+    scripted `LLMResult`. When a schema is supplied at call time, the scripted
+    result's `json` payload is validated against it, mirroring `ClaudeCli`.
+    """
+
+    def __init__(self, responses: dict[str, LLMResult] | None = None) -> None:
+        """Seed scripted `{prompt-substring: LLMResult}` responses; start empty otherwise."""
+        self._responses: dict[str, LLMResult] = dict(responses or {})
+        self.calls: list[LLMCall] = []
+
+    def complete(
+        self,
+        prompt: str,
+        *,
+        schema: dict | None,
+        model: str,
+        temperature: float,
+    ) -> LLMResult:
+        """Return the scripted result for the first matching substring key."""
+        self.calls.append(LLMCall(prompt, model, temperature, schema))
+
+        result = self._match(prompt)
+        if result is None:
+            raise LLMError(f"no scripted FakeLLM response matches prompt: {prompt!r}")
+
+        if schema is not None:
+            try:
+                jsonschema.validate(result.json, schema)
+            except jsonschema.ValidationError as exc:
+                raise LLMError(
+                    f"scripted FakeLLM payload failed schema validation: {exc}"
+                ) from exc
+
+        return result
+
+    def _match(self, prompt: str) -> LLMResult | None:
+        """Return the scripted result whose key is a substring of `prompt`."""
+        for key, result in self._responses.items():
+            if key in prompt:
+                return result
+        return None
