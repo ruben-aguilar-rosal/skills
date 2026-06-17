@@ -53,7 +53,7 @@ don't attempt it until P12 is green.
 | P03 | prompts/P03-git-port.md | #3 | ☑ |
 | P04 | prompts/P04-layout.md | #4 | ☑ |
 | P05 | prompts/P05-detect.md | #5 | ☑ |
-| P06 | prompts/P06-gate.md | #6 | ☐ |
+| P06 | prompts/P06-gate.md | #6 | ☑ |
 | P07 | prompts/P07-validate.md | #7 | ☐ |
 | P08 | prompts/P08-llm-port.md | #8 | ☐ |
 | P09 | prompts/P09-advisory-scan.md | #9 | ☐ |
