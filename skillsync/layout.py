@@ -73,6 +73,23 @@ def mirror_files(files: dict[str, str], dest_dir: Path) -> None:
         write_text(dest_dir / rel_path, content)
 
 
+def read_tree(directory: Path) -> dict[str, str]:
+    """Return `{relative-path: content}` for every file under `directory`.
+
+    The inverse of `mirror_files`: it reads a previously-mirrored upstream subtree
+    back off disk for the regen/reprofile commands, which regenerate from the
+    current on-disk mirror rather than re-pulling upstream. Returns `{}` when the
+    directory is absent.
+    """
+    if not directory.is_dir():
+        return {}
+    files: dict[str, str] = {}
+    for path in sorted(directory.rglob("*")):
+        if path.is_file():
+            files[path.relative_to(directory).as_posix()] = path.read_text()
+    return files
+
+
 def read_skill(layout: SkillLayout) -> SkillFiles:
     """Read the adaptation, committed SKILL.md, and generated snapshot for a skill."""
     return SkillFiles(

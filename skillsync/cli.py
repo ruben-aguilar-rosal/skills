@@ -6,6 +6,8 @@ import typer
 
 from skillsync import __version__
 from skillsync.commands.add import run_add
+from skillsync.commands.regen import run_regen
+from skillsync.commands.reprofile import ReprofileOutcome, run_reprofile
 from skillsync.config import ConfigError, load_config
 from skillsync.layout import SkillLayout, discover_skills, read_skill
 from skillsync.pipeline import SyncOutcome, run_sync
@@ -211,6 +213,77 @@ def add_cmd(
     )
     suffix = f"  {outcome.url}" if outcome.url else ""
     typer.echo(f"{outcome.name}  {outcome.status}{suffix}")
+
+
+@app.command(name="regen")
+def regen_cmd(
+    name: str = typer.Argument(..., help="Skill folder name under skills/."),
+    force: bool = typer.Option(
+        False, "--force", help="Full rewrite (regen is always a full rebuild)."
+    ),
+    config_path: Path = typer.Option(
+        Path("sources.yaml"), "--config", help="Path to sources.yaml."
+    ),
+    root: Path = typer.Option(Path("."), help="Repo root containing skills/."),
+) -> None:
+    """Regenerate one skill's SKILL.md from its on-disk upstream + adaptation, opening a PR.
+
+    Reads the upstream mirror and adaptation.md already under skills/<name>/,
+    full-generates a fresh SKILL.md, validates it, and opens a `skillsync/regen-<name>`
+    PR (or files an issue on a validation failure). Never bumps the pin's synced_sha.
+    """
+    try:
+        config = load_config(config_path)
+    except ConfigError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    for warning in config.warnings:
+        typer.echo(f"warning: {warning}", err=True)
+
+    outcome = run_regen(
+        config, root, name, llm=make_llm(), gh=make_gh(), force=force
+    )
+    suffix = f"  {outcome.url}" if outcome.url else ""
+    typer.echo(f"{outcome.name}  {outcome.status}{suffix}")
+
+
+@app.command(name="reprofile")
+def reprofile_cmd(
+    config_path: Path = typer.Option(
+        Path("sources.yaml"), "--config", help="Path to sources.yaml."
+    ),
+    root: Path = typer.Option(Path("."), help="Repo root containing skills/."),
+) -> None:
+    """Re-bake the current profile.md into every skill's adaptation.md, one PR per skill.
+
+    For each tracked skill, an LLM pass re-bakes profile.md into its adaptation.md,
+    then SKILL.md is regenerated, validated, and shipped as a `reprofile`-labelled PR.
+    A skill that fails validation is blocked (issue, no PR) without affecting others.
+    """
+    try:
+        config = load_config(config_path)
+    except ConfigError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    for warning in config.warnings:
+        typer.echo(f"warning: {warning}", err=True)
+
+    outcomes = run_reprofile(config, root, llm=make_llm(), gh=make_gh())
+    _print_reprofile_outcomes(outcomes)
+
+
+def _print_reprofile_outcomes(outcomes: list[ReprofileOutcome]) -> None:
+    """Print a name → status → url summary table for the reprofile run."""
+    if not outcomes:
+        typer.echo("no skills to reprofile (none configured)")
+        return
+
+    width = max(len(o.name) for o in outcomes)
+    for outcome in outcomes:
+        suffix = f"  {outcome.url}" if outcome.url else ""
+        typer.echo(f"{outcome.name.ljust(width)}  {outcome.status}{suffix}")
 
 
 def _print_outcomes(outcomes: list[SyncOutcome]) -> None:

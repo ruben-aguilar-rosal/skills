@@ -53,6 +53,8 @@ def build_pr(
     *,
     adaptation_summary: str | None = None,
     extra_labels: list[str] | None = None,
+    branch: str | None = None,
+    title: str | None = None,
 ) -> SkillPR:
     """Assemble a `SkillPR` from the pipeline results for one changed skill.
 
@@ -61,11 +63,16 @@ def build_pr(
     bump, the adaptation.md change summary, and any review flags. Nothing about the
     body depends on the adapted output — the raw diff is always shown verbatim.
     `extra_labels` are appended to the review labels (e.g. `onboarding` for a
-    first-time `skillsync add`).
+    first-time `skillsync add`). `branch` and `title` override the defaults so the
+    maintenance commands can ship a `skillsync/regen-<name>` branch or a
+    reprofile-specific title while still reusing this assembly.
     """
     name = changeset.name
-    branch = f"{_BRANCH_PREFIX}/{name}"
-    title = f"skillsync: update {name} ({_short(changeset.from_sha)}→{_short(changeset.to_sha)})"
+    branch = branch or f"{_BRANCH_PREFIX}/{name}"
+    title = title or (
+        f"skillsync: update {name} "
+        f"({_short(changeset.from_sha)}→{_short(changeset.to_sha)})"
+    )
     flags = _collect_flags(changeset, adapt_result)
     body = _build_body(changeset, gate, advisory, adaptation_summary, flags)
     return SkillPR(

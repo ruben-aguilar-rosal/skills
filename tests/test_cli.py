@@ -192,3 +192,79 @@ def test_add_onboards_skill_with_injected_fakes(
     assert result.exit_code == 0
     assert "demo" in result.stdout
     assert "pr" in result.stdout
+
+
+def test_regen_regenerates_skill_with_injected_fakes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`skillsync regen` rebuilds a skill from on-disk sources and prints the outcome."""
+    regenerated = "---\nname: demo\ndescription: A demo.\n---\n\n# demo\nFile a Jira issue.\n"
+    write_text(
+        tmp_path / "skills" / "demo" / "upstream" / "SKILL.md",
+        "---\nname: demo\ndescription: Upstream.\n---\n\n# demo\nMake an issue.\n",
+    )
+    write_text(tmp_path / "skills" / "demo" / "adaptation.md", "Use Jira project TP.\n")
+    write_text(tmp_path / "skills" / "demo" / "SKILL.md", "old")
+    llm = FakeLLM({"from scratch": LLMResult(text="{}", json={"skill_md": regenerated})})
+    monkeypatch.setattr(cli, "make_llm", lambda: llm)
+    monkeypatch.setattr(cli, "make_gh", lambda: FakeGh())
+
+    config_path = tmp_path / "sources.yaml"
+    config_path.write_text(
+        "sources:\n"
+        "  - repo: owner/repo\n"
+        "    ref: main\n"
+        "    skills:\n"
+        "      - path: skills/demo\n"
+        "        synced_sha: sha1\n"
+    )
+
+    result = RUNNER.invoke(
+        app, ["regen", "demo", "--config", str(config_path), "--root", str(tmp_path)]
+    )
+
+    assert result.exit_code == 0
+    assert "demo" in result.stdout
+    assert "pr" in result.stdout
+
+
+def test_reprofile_rebakes_every_skill_with_injected_fakes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`skillsync reprofile` re-bakes profile.md into each skill and prints outcomes."""
+    regenerated = "---\nname: demo\ndescription: A demo.\n---\n\n# demo\nFile a Jira issue.\n"
+    write_text(
+        tmp_path / "skills" / "demo" / "upstream" / "SKILL.md",
+        "---\nname: demo\ndescription: Upstream.\n---\n\n# demo\nMake an issue.\n",
+    )
+    write_text(tmp_path / "skills" / "demo" / "adaptation.md", "Old profile.\n")
+    write_text(tmp_path / "skills" / "demo" / "SKILL.md", regenerated)
+    (tmp_path / "profile.md").write_text("Use Jira project TP.\n")
+    llm = FakeLLM(
+        {
+            "re-baking the author profile": LLMResult(
+                text="{}", json={"adaptation_md": "Use Jira project TP.\n\nFile in TP.\n"}
+            ),
+            "from scratch": LLMResult(text="{}", json={"skill_md": regenerated}),
+        }
+    )
+    monkeypatch.setattr(cli, "make_llm", lambda: llm)
+    monkeypatch.setattr(cli, "make_gh", lambda: FakeGh())
+
+    config_path = tmp_path / "sources.yaml"
+    config_path.write_text(
+        "sources:\n"
+        "  - repo: owner/repo\n"
+        "    ref: main\n"
+        "    skills:\n"
+        "      - path: skills/demo\n"
+        "        synced_sha: sha1\n"
+    )
+
+    result = RUNNER.invoke(
+        app, ["reprofile", "--config", str(config_path), "--root", str(tmp_path)]
+    )
+
+    assert result.exit_code == 0
+    assert "demo" in result.stdout
+    assert "pr" in result.stdout
