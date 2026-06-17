@@ -154,3 +154,52 @@ class FakeLLM:
             if key in prompt:
                 return result
         return None
+
+
+@dataclass(frozen=True)
+class GhCall:
+    """A single recorded `FakeGh` invocation: the method name and its arguments."""
+
+    method: str
+    args: tuple
+
+
+class FakeGh:
+    """`GhPort` that records every call in order without touching git or gh.
+
+    `open_pr` returns a synthetic, deterministic URL derived from the branch name.
+    `calls` preserves invocation order so tests can assert the
+    branch -> commit -> open_pr sequence the PR layer must drive.
+    """
+
+    def __init__(self, branch: str = "main", pr_url: str | None = None) -> None:
+        """Seed the reported current branch and an optional fixed PR URL."""
+        self._branch = branch
+        self._pr_url = pr_url
+        self.calls: list[GhCall] = []
+
+    def current_branch(self, root: Path) -> str:
+        """Record the call and return the seeded current-branch name."""
+        self.calls.append(GhCall("current_branch", (root,)))
+        return self._branch
+
+    def create_branch(self, root: Path, name: str) -> None:
+        """Record the branch creation and adopt `name` as the current branch."""
+        self.calls.append(GhCall("create_branch", (root, name)))
+        self._branch = name
+
+    def commit_all(self, root: Path, message: str) -> None:
+        """Record the commit and its message."""
+        self.calls.append(GhCall("commit_all", (root, message)))
+
+    def open_pr(
+        self,
+        root: Path,
+        branch: str,
+        title: str,
+        body: str,
+        labels: list[str],
+    ) -> str:
+        """Record the PR open and return a synthetic deterministic PR URL."""
+        self.calls.append(GhCall("open_pr", (root, branch, title, body, list(labels))))
+        return self._pr_url or f"https://github.com/fake/skills/pull/{branch}"
