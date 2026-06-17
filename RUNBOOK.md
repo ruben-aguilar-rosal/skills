@@ -56,7 +56,7 @@ don't attempt it until P12 is green.
 | P06 | prompts/P06-gate.md | #6 | ☑ |
 | P07 | prompts/P07-validate.md | #7 | ☑ |
 | P08 | prompts/P08-llm-port.md | #8 | ☑ |
-| P09 | prompts/P09-advisory-scan.md | #9 | ☐ |
+| P09 | prompts/P09-advisory-scan.md | #9 | ☑ |
 | P10 | prompts/P10-adapt.md | #10 | ☐ |
 | P11 | prompts/P11-reconcile.md | #11 | ☐ |
 | P12 | prompts/P12-pr-builder.md | #12 | ☐ |
