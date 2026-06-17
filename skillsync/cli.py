@@ -6,10 +6,12 @@ import typer
 
 from skillsync import __version__
 from skillsync.commands.add import run_add
+from skillsync.commands.link import default_target_dir, run_link
 from skillsync.commands.regen import run_regen
 from skillsync.commands.reprofile import ReprofileOutcome, run_reprofile
+from skillsync.commands.status import SkillStatus, gather_status
 from skillsync.config import ConfigError, load_config
-from skillsync.layout import SkillLayout, discover_skills, read_skill
+from skillsync.layout import SkillLayout, read_skill
 from skillsync.pipeline import SyncOutcome, run_sync
 from skillsync.ports.gh import GhPort
 from skillsync.ports.gh_cli import GhCli
@@ -72,24 +74,84 @@ def config_check() -> None:
 
 @app.command()
 def status(
+    config_path: Path = typer.Option(
+        Path("sources.yaml"), "--config", help="Path to sources.yaml."
+    ),
     root: Path = typer.Option(
         Path("."), help="Repo root containing the skills/ directory."
     ),
+    offline: bool = typer.Option(
+        False, "--offline", help="Skip the (online) upstream-ahead probe."
+    ),
 ) -> None:
-    """List skill folders under `skills/` and which files each has present."""
-    layouts = discover_skills(root)
-    if not layouts:
+    """Report per skill its synced sha, upstream-ahead, drift, and link state.
+
+    Loads `sources.yaml` for the pins, then prints one row per skill folder under
+    `skills/`. The upstream-ahead column uses the real git port (offline-tolerant —
+    a `?` means undetermined); pass `--offline` to skip it entirely.
+    """
+    try:
+        config = load_config(config_path)
+    except ConfigError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    for warning in config.warnings:
+        typer.echo(f"warning: {warning}", err=True)
+
+    git = None if offline else make_git()
+    rows = gather_status(config, root, git=git, target_dir=default_target_dir())
+    _print_status(rows)
+
+
+def _print_status(rows: list[SkillStatus]) -> None:
+    """Print the per-skill status table, one row per skill folder."""
+    if not rows:
         typer.echo("no skills found under skills/")
         return
 
-    for layout in layouts:
-        files = read_skill(layout)
-        marks = (
-            f"adaptation={'✓' if files.adaptation is not None else '✗'} "
-            f"SKILL={'✓' if files.skill_md is not None else '✗'} "
-            f"generated={'✓' if files.generated_skill_md is not None else '✗'}"
+    width = max(len(row.name) for row in rows)
+    for row in rows:
+        sha = row.synced_sha or "-------"
+        ahead = {True: "ahead", False: "synced", None: "?"}[row.upstream_ahead]
+        drift = "drift" if row.drift else "clean"
+        link = "linked" if row.linked else "unlinked"
+        typer.echo(
+            f"{row.name.ljust(width)}  {sha}  upstream={ahead}  {drift}  {link}"
         )
-        typer.echo(f"{layout.name}: {marks}")
+
+
+@app.command(name="link")
+def link_cmd(
+    root: Path = typer.Option(
+        Path("."), help="Repo root containing the skills/ directory."
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Print planned actions without changing anything."
+    ),
+) -> None:
+    """Symlink each skill folder under `skills/` into the native skills dir.
+
+    The target dir is `$SKILLSYNC_LINK_DIR` if set, else `~/.claude/skills`. A real
+    (non-symlink) path already occupying a slot is skipped with a warning and never
+    clobbered. `--dry-run` prints the plan without touching the filesystem.
+    """
+    actions = run_link(root, target_dir=default_target_dir(), dry_run=dry_run)
+    if not actions:
+        typer.echo("no skills found under skills/")
+        return
+
+    prefix = "would " if dry_run else ""
+    width = max(len(a.name) for a in actions)
+    for action in actions:
+        if action.action == "conflict":
+            typer.echo(
+                f"warning: {action.name}: {action.link_path} exists and is not a "
+                "symlink; skipping",
+                err=True,
+            )
+            continue
+        typer.echo(f"{action.name.ljust(width)}  {prefix}{action.action}")
 
 
 @app.command(name="detect")

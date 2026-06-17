@@ -22,26 +22,83 @@ def test_version_exits_zero_and_prints_version() -> None:
     assert __version__ in result.stdout
 
 
-def test_status_lists_skill_folders_and_presence(tmp_path: Path) -> None:
-    """`skillsync status` lists each skill folder and which files are present."""
-    write_text(tmp_path / "skills" / "alpha" / "adaptation.md", "rules")
-    write_text(tmp_path / "skills" / "alpha" / "SKILL.md", "skill")
-    write_text(tmp_path / "skills" / "alpha" / ".generated" / "SKILL.md", "snap")
-    write_text(tmp_path / "skills" / "beta" / "adaptation.md", "rules")
+def _write_sources(tmp_path: Path, body: str) -> Path:
+    """Write a sources.yaml under `tmp_path` and return its path."""
+    config_path = tmp_path / "sources.yaml"
+    config_path.write_text(body)
+    return config_path
 
-    result = RUNNER.invoke(app, ["status", "--root", str(tmp_path)])
+
+def test_status_reports_sha_drift_and_link_state(tmp_path: Path) -> None:
+    """`skillsync status` (offline) reports each skill's sha, drift, and link state."""
+    write_text(tmp_path / "skills" / "alpha" / "SKILL.md", "hand-edited")
+    write_text(tmp_path / "skills" / "alpha" / ".generated" / "SKILL.md", "generated")
+    write_text(tmp_path / "skills" / "beta" / "SKILL.md", "same")
+    write_text(tmp_path / "skills" / "beta" / ".generated" / "SKILL.md", "same")
+    config_path = _write_sources(
+        tmp_path,
+        "sources:\n"
+        "  - repo: owner/repo\n"
+        "    ref: main\n"
+        "    skills:\n"
+        "      - path: skills/alpha\n"
+        "        synced_sha: abcdef1234\n",
+    )
+
+    result = RUNNER.invoke(
+        app,
+        ["status", "--config", str(config_path), "--root", str(tmp_path), "--offline"],
+    )
 
     assert result.exit_code == 0
     assert "alpha" in result.stdout
+    assert "abcdef1" in result.stdout  # short sha
+    assert "drift" in result.stdout
     assert "beta" in result.stdout
+    assert "clean" in result.stdout
 
 
 def test_status_reports_no_skills(tmp_path: Path) -> None:
     """`skillsync status` reports cleanly when no skill folders exist."""
-    result = RUNNER.invoke(app, ["status", "--root", str(tmp_path)])
+    config_path = _write_sources(tmp_path, "sources: []\n")
+
+    result = RUNNER.invoke(
+        app,
+        ["status", "--config", str(config_path), "--root", str(tmp_path), "--offline"],
+    )
 
     assert result.exit_code == 0
     assert "no skills" in result.stdout.lower()
+
+
+def test_link_symlinks_skills_into_target_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`skillsync link` symlinks each skill into the env-overridden target dir."""
+    write_text(tmp_path / "skills" / "demo" / "SKILL.md", "# demo\n")
+    target = tmp_path / "claude_skills"
+    monkeypatch.setenv("SKILLSYNC_LINK_DIR", str(target))
+
+    result = RUNNER.invoke(app, ["link", "--root", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert "demo" in result.stdout
+    assert (target / "demo").is_symlink()
+
+
+def test_link_dry_run_makes_no_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`skillsync link --dry-run` prints the plan without touching the filesystem."""
+    write_text(tmp_path / "skills" / "demo" / "SKILL.md", "# demo\n")
+    target = tmp_path / "claude_skills"
+    monkeypatch.setenv("SKILLSYNC_LINK_DIR", str(target))
+
+    result = RUNNER.invoke(app, ["link", "--root", str(tmp_path), "--dry-run"])
+
+    assert result.exit_code == 0
+    assert "would create" in result.stdout
+    assert not target.exists()
 
 
 def test_detect_prints_kind_table_with_injected_fake(
