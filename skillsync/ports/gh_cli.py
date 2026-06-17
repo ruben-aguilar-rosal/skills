@@ -79,6 +79,15 @@ class GhCli:
             argv += ["--label", label]
         return self._run(root, *argv).strip()
 
+    def open_issue(
+        self, root: Path, title: str, body: str, labels: list[str]
+    ) -> str:
+        """Open an issue via `gh issue create`; return the printed URL."""
+        argv = ["gh", "issue", "create", "--title", title, "--body", body]
+        for label in labels:
+            argv += ["--label", label]
+        return self._run(root, *argv).strip()
+
     def _exec(self, cwd: Path, *args: str) -> "subprocess.CompletedProcess[str]":
         """Run a command with `shell=False` and a timeout; never raises on exit code."""
         try:

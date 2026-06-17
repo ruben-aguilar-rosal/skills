@@ -40,3 +40,13 @@ class GhPort(Protocol):
     ) -> str:
         """Open a PR for `branch` with `title`/`body`/`labels`; return its URL."""
         ...
+
+    def open_issue(
+        self, root: Path, title: str, body: str, labels: list[str]
+    ) -> str:
+        """Open an issue with `title`/`body`/`labels`; return its URL.
+
+        Used for the no-PR outcomes — quarantine (gate fail) and a validation
+        failure — where the pipeline must surface the problem without a branch.
+        """
+        ...

@@ -73,6 +73,21 @@ class GitCli:
             if line
         ]
 
+    def read_subtree_files(
+        self, repo_path: Path, ref: str, subtree: str
+    ) -> dict[str, str]:
+        """Return `{subtree-relative-path: content}` for every file under `subtree` at `ref`.
+
+        Reads each blob with `git show <ref>:<path>` so it works against a bare
+        mirror with no working tree checked out.
+        """
+        prefix = subtree.rstrip("/") + "/"
+        files: dict[str, str] = {}
+        for rel_path in self.list_subtree_files(repo_path, ref, subtree):
+            full_path = f"{prefix}{rel_path}"
+            files[rel_path] = self._run(repo_path, "show", f"{ref}:{full_path}")
+        return files
+
     def _exec(self, cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
         """Run a git command with `shell=False` and a timeout; never raises on exit code."""
         try:

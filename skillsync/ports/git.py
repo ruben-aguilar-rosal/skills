@@ -42,3 +42,13 @@ class GitPort(Protocol):
     def list_subtree_files(self, repo_path: Path, ref: str, subtree: str) -> list[str]:
         """List subtree-relative file paths present under `subtree` at `ref`."""
         ...
+
+    def read_subtree_files(
+        self, repo_path: Path, ref: str, subtree: str
+    ) -> dict[str, str]:
+        """Return `{subtree-relative-path: content}` for every file under `subtree` at `ref`.
+
+        This is the content surface the security gate scans and full-mode adapt /
+        the upstream mirror write consume.
+        """
+        ...

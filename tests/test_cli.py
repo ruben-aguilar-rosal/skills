@@ -8,7 +8,8 @@ from typer.testing import CliRunner
 from skillsync import __version__, cli
 from skillsync.cli import app
 from skillsync.layout import write_text
-from skillsync.testing.fakes import FakeGit
+from skillsync.ports.llm import LLMResult
+from skillsync.testing.fakes import FakeGh, FakeGit, FakeLLM
 
 RUNNER = CliRunner()
 
@@ -96,3 +97,49 @@ def test_validate_exits_one_for_broken_skill(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "scripts/missing.sh" in result.output
+
+
+def test_sync_prints_outcome_table_with_injected_fakes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`skillsync sync` runs the pipeline with injected fakes and prints outcomes."""
+    upstream_old = "---\nname: demo\ndescription: Old.\n---\n\nold\n"
+    upstream_new = "---\nname: demo\ndescription: New.\n---\n\nnew\n"
+    adapted = "---\nname: demo\ndescription: A demo.\n---\n\n# demo\nbody\n"
+
+    git = FakeGit()
+    git.add_commit("sha1", {"skills/demo/SKILL.md": upstream_old})
+    git.add_commit("sha2", {"skills/demo/SKILL.md": upstream_new})
+    git.set_ref("main", "sha2")
+    write_text(tmp_path / "skills" / "demo" / "SKILL.md", upstream_old)
+    llm = FakeLLM(
+        {
+            "security reviewer auditing": LLMResult(
+                text="{}", json={"risk": "low", "rationale": "ok", "findings": []}
+            ),
+            "Apply the SEMANTIC EQUIVALENT": LLMResult(
+                text="{}", json={"skill_md": adapted}
+            ),
+        }
+    )
+    monkeypatch.setattr(cli, "make_git", lambda: git)
+    monkeypatch.setattr(cli, "make_llm", lambda: llm)
+    monkeypatch.setattr(cli, "make_gh", lambda: FakeGh())
+
+    config_path = tmp_path / "sources.yaml"
+    config_path.write_text(
+        "sources:\n"
+        "  - repo: owner/repo\n"
+        "    ref: main\n"
+        "    skills:\n"
+        "      - path: skills/demo\n"
+        "        synced_sha: sha1\n"
+    )
+
+    result = RUNNER.invoke(
+        app, ["sync", "--config", str(config_path), "--root", str(tmp_path)]
+    )
+
+    assert result.exit_code == 0
+    assert "demo" in result.stdout
+    assert "pr" in result.stdout

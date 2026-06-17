@@ -7,8 +7,13 @@ import typer
 from skillsync import __version__
 from skillsync.config import ConfigError, load_config
 from skillsync.layout import SkillLayout, discover_skills, read_skill
+from skillsync.pipeline import SyncOutcome, run_sync
+from skillsync.ports.gh import GhPort
+from skillsync.ports.gh_cli import GhCli
 from skillsync.ports.git import GitPort
 from skillsync.ports.git_cli import GitCli
+from skillsync.ports.llm import LLMPort
+from skillsync.ports.llm_claude import ClaudeCli
 from skillsync.stages.detect import detect
 from skillsync.stages.gate import DEFAULT_MAX_FILE_BYTES
 from skillsync.stages.validate import validate_skill
@@ -23,6 +28,16 @@ def make_git() -> GitPort:
     `FakeGit`, so the CLI never shells out to real git under test.
     """
     return GitCli()
+
+
+def make_llm() -> LLMPort:
+    """Construct the LLM port the agentic stages use (real headless `claude -p`)."""
+    return ClaudeCli()
+
+
+def make_gh() -> GhPort:
+    """Construct the gh port the PR/issue output uses (real `git`/`gh` CLIs)."""
+    return GhCli()
 
 
 @app.callback()
@@ -125,6 +140,48 @@ def validate_cmd(
     for error in result.errors:
         typer.echo(f"  - {error}", err=True)
     raise typer.Exit(code=1)
+
+
+@app.command(name="sync")
+def sync_cmd(
+    skill: str | None = typer.Option(
+        None, "--skill", help="Restrict the run to this skill folder name."
+    ),
+    config_path: Path = typer.Option(
+        Path("sources.yaml"), "--config", help="Path to sources.yaml."
+    ),
+    root: Path = typer.Option(Path("."), help="Repo root containing skills/."),
+) -> None:
+    """Run the full sync pipeline and print a per-skill outcome summary table.
+
+    Assembles the real git/LLM/gh ports (Opus, temperature 0) and runs
+    detect → gate → reconcile → adapt → verify → validate → PR per changed skill.
+    """
+    try:
+        config = load_config(config_path)
+    except ConfigError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    for warning in config.warnings:
+        typer.echo(f"warning: {warning}", err=True)
+
+    outcomes = run_sync(
+        config, root, git=make_git(), llm=make_llm(), gh=make_gh(), only=skill
+    )
+    _print_outcomes(outcomes)
+
+
+def _print_outcomes(outcomes: list[SyncOutcome]) -> None:
+    """Print a name → status → url summary table for the sync run."""
+    if not outcomes:
+        typer.echo("no skills to sync (all held, unchanged, or none configured)")
+        return
+
+    width = max(len(o.name) for o in outcomes)
+    for outcome in outcomes:
+        suffix = f"  {outcome.url}" if outcome.url else ""
+        typer.echo(f"{outcome.name.ljust(width)}  {outcome.status}{suffix}")
 
 
 if __name__ == "__main__":

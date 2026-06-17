@@ -82,6 +82,12 @@ class FakeGit:
         """List subtree-relative file paths present under `subtree` at `ref`."""
         return sorted(self._subtree_files(self._resolve(ref), subtree))
 
+    def read_subtree_files(
+        self, repo_path: Path, ref: str, subtree: str
+    ) -> dict[str, str]:
+        """Return `{subtree-relative-path: content}` for files under `subtree` at `ref`."""
+        return self._subtree_files(self._resolve(ref), subtree)
+
     def _resolve(self, ref: str) -> str:
         """Resolve a ref name or raw sha to a known commit sha, or raise GitError."""
         if ref in self._refs:
@@ -203,3 +209,10 @@ class FakeGh:
         """Record the PR open and return a synthetic deterministic PR URL."""
         self.calls.append(GhCall("open_pr", (root, branch, title, body, list(labels))))
         return self._pr_url or f"https://github.com/fake/skills/pull/{branch}"
+
+    def open_issue(
+        self, root: Path, title: str, body: str, labels: list[str]
+    ) -> str:
+        """Record the issue open and return a synthetic deterministic issue URL."""
+        self.calls.append(GhCall("open_issue", (root, title, body, list(labels))))
+        return f"https://github.com/fake/skills/issues/{len(self.calls)}"
