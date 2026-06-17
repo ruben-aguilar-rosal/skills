@@ -62,7 +62,7 @@ don't attempt it until P12 is green.
 | P12 | prompts/P12-pr-builder.md | #12 | ☑ |
 | P13 | prompts/P13-sync.md | #13 | ☑ |
 | P14 | prompts/P14-add.md | #14 | ☑ |
-| P15 | prompts/P15-regen-reprofile.md | #15 | ☐ |
+| P15 | prompts/P15-regen-reprofile.md | #15 | ☑ |
 | P16 | prompts/P16-link-status.md | #16 | ☐ |
 
 The full prompt set also lives in `PROMPTS.md` (single-file view).
