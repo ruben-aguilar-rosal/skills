@@ -5,6 +5,7 @@ from pathlib import Path
 import typer
 
 from skillsync import __version__
+from skillsync.commands.add import run_add
 from skillsync.config import ConfigError, load_config
 from skillsync.layout import SkillLayout, discover_skills, read_skill
 from skillsync.pipeline import SyncOutcome, run_sync
@@ -170,6 +171,46 @@ def sync_cmd(
         config, root, git=make_git(), llm=make_llm(), gh=make_gh(), only=skill
     )
     _print_outcomes(outcomes)
+
+
+@app.command(name="add")
+def add_cmd(
+    repo: str = typer.Argument(..., help="Upstream repo, e.g. owner/repo."),
+    skill_path: str = typer.Argument(..., help="Subtree path of the skill to onboard."),
+    config_path: Path = typer.Option(
+        Path("sources.yaml"), "--config", help="Path to sources.yaml."
+    ),
+    root: Path = typer.Option(Path("."), help="Repo root containing skills/."),
+    ref: str = typer.Option("main", "--ref", help="Upstream ref to fetch."),
+) -> None:
+    """Onboard a new upstream skill: draft adaptation.md, full-generate, and open a PR.
+
+    Appends an unsynced pin to sources.yaml, mirrors upstream, runs the security
+    gate, then (on pass) drafts a self-contained adaptation.md from profile.md plus
+    the upstream SKILL.md, full-generates the first SKILL.md, validates it, and opens
+    an `onboarding`-labelled PR. Assembles the real git/LLM/gh ports (Opus, temp 0).
+    """
+    try:
+        config = load_config(config_path)
+    except ConfigError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    for warning in config.warnings:
+        typer.echo(f"warning: {warning}", err=True)
+
+    outcome = run_add(
+        config,
+        root,
+        repo,
+        skill_path,
+        git=make_git(),
+        llm=make_llm(),
+        gh=make_gh(),
+        ref=ref,
+    )
+    suffix = f"  {outcome.url}" if outcome.url else ""
+    typer.echo(f"{outcome.name}  {outcome.status}{suffix}")
 
 
 def _print_outcomes(outcomes: list[SyncOutcome]) -> None:

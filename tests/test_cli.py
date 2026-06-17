@@ -143,3 +143,52 @@ def test_sync_prints_outcome_table_with_injected_fakes(
     assert result.exit_code == 0
     assert "demo" in result.stdout
     assert "pr" in result.stdout
+
+
+def test_add_onboards_skill_with_injected_fakes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`skillsync add` onboards a new skill with injected fakes and prints the outcome."""
+    upstream = (
+        "---\nname: demo\ndescription: Notes to issues.\n---\n\n# demo\nMake an issue.\n"
+    )
+    adapted = "---\nname: demo\ndescription: A demo.\n---\n\n# demo\nFile a Jira issue.\n"
+
+    git = FakeGit()
+    git.add_commit("sha1", {"skills/demo/SKILL.md": upstream})
+    git.set_ref("main", "sha1")
+    (tmp_path / "profile.md").write_text("Use Jira project TP.\n")
+    llm = FakeLLM(
+        {
+            "security reviewer auditing": LLMResult(
+                text="{}", json={"risk": "low", "rationale": "ok", "findings": []}
+            ),
+            "drafting a self-contained": LLMResult(
+                text="{}", json={"adaptation_md": "Use Jira project TP.\n\nFile in TP.\n"}
+            ),
+            "from scratch": LLMResult(text="{}", json={"skill_md": adapted}),
+        }
+    )
+    monkeypatch.setattr(cli, "make_git", lambda: git)
+    monkeypatch.setattr(cli, "make_llm", lambda: llm)
+    monkeypatch.setattr(cli, "make_gh", lambda: FakeGh())
+
+    config_path = tmp_path / "sources.yaml"
+    config_path.write_text("sources: []\n")
+
+    result = RUNNER.invoke(
+        app,
+        [
+            "add",
+            "owner/repo",
+            "skills/demo",
+            "--config",
+            str(config_path),
+            "--root",
+            str(tmp_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "demo" in result.stdout
+    assert "pr" in result.stdout

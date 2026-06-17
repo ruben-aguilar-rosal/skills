@@ -52,6 +52,7 @@ def build_pr(
     adapt_result: AdaptResult,
     *,
     adaptation_summary: str | None = None,
+    extra_labels: list[str] | None = None,
 ) -> SkillPR:
     """Assemble a `SkillPR` from the pipeline results for one changed skill.
 
@@ -59,6 +60,8 @@ def build_pr(
     diff, the gate's extracted commands and URLs, the advisory verdict, the sha
     bump, the adaptation.md change summary, and any review flags. Nothing about the
     body depends on the adapted output — the raw diff is always shown verbatim.
+    `extra_labels` are appended to the review labels (e.g. `onboarding` for a
+    first-time `skillsync add`).
     """
     name = changeset.name
     branch = f"{_BRANCH_PREFIX}/{name}"
@@ -71,7 +74,7 @@ def build_pr(
         title=title,
         body=body,
         commit_message=f"skillsync: adapt {name} to {_short(changeset.to_sha)}",
-        labels=_build_labels(advisory, flags),
+        labels=_build_labels(advisory, flags, extra_labels or []),
     )
 
 
@@ -99,11 +102,16 @@ def _collect_flags(changeset: ChangeSet, adapt_result: AdaptResult) -> list[str]
     return flags
 
 
-def _build_labels(advisory: AdvisoryVerdict, flags: list[str]) -> list[str]:
-    """Build the review labels: a base label, the advisory risk, and a flag marker."""
+def _build_labels(
+    advisory: AdvisoryVerdict, flags: list[str], extra_labels: list[str]
+) -> list[str]:
+    """Build the review labels: base, advisory risk, a flag marker, and any extras."""
     labels = [_BASE_LABEL, f"{_RISK_LABEL_PREFIX}-{advisory.risk}"]
     if flags:
         labels.append("needs-attention")
+    for label in extra_labels:
+        if label not in labels:
+            labels.append(label)
     return labels
 
 
