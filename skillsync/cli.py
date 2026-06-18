@@ -12,7 +12,7 @@ from skillsync.commands.reprofile import ReprofileOutcome, run_reprofile
 from skillsync.commands.status import SkillStatus, gather_status
 from skillsync.config import ConfigError, load_config
 from skillsync.layout import SkillLayout, read_skill
-from skillsync.pipeline import SyncOutcome, run_sync
+from skillsync.pipeline import SyncOptions, SyncOutcome, run_sync
 from skillsync.ports.gh import GhPort
 from skillsync.ports.gh_cli import GhCli
 from skillsync.ports.git import GitPort
@@ -216,11 +216,35 @@ def sync_cmd(
         Path("sources.yaml"), "--config", help="Path to sources.yaml."
     ),
     root: Path = typer.Option(Path("."), help="Repo root containing skills/."),
+    no_pr: bool = typer.Option(
+        False,
+        "--no-pr",
+        help="Adapt and write artifacts to the working tree, but don't open a PR.",
+    ),
+    skip_advisory: bool = typer.Option(
+        False, "--skip-advisory", help="Skip the advisory LLM scan (saves quota)."
+    ),
+    skip_reconcile: bool = typer.Option(
+        False,
+        "--skip-reconcile",
+        help="Skip hand-edit drift fold-back and preservation verify.",
+    ),
+    skip_validate: bool = typer.Option(
+        False,
+        "--skip-validate",
+        help="Skip the blocking validation (write even a malformed SKILL.md).",
+    ),
 ) -> None:
     """Run the full sync pipeline and print a per-skill outcome summary table.
 
     Assembles the real git/LLM/gh ports (Opus, temperature 0) and runs
     detect → gate → reconcile → adapt → verify → validate → PR per changed skill.
+
+    The stage toggles let you sync skills locally and play with them before any PR:
+    `--no-pr` writes the adapted artifacts to the working tree (and bumps the pin)
+    without opening a PR, while `--skip-advisory` / `--skip-reconcile` /
+    `--skip-validate` turn off individual optional stages. The deterministic security
+    gate and the adapt step always run.
     """
     try:
         config = load_config(config_path)
@@ -231,8 +255,20 @@ def sync_cmd(
     for warning in config.warnings:
         typer.echo(f"warning: {warning}", err=True)
 
+    options = SyncOptions(
+        open_pr=not no_pr,
+        run_advisory=not skip_advisory,
+        run_reconcile=not skip_reconcile,
+        run_validate=not skip_validate,
+    )
     outcomes = run_sync(
-        config, root, git=make_git(), llm=make_llm(), gh=make_gh(), only=skill
+        config,
+        root,
+        git=make_git(),
+        llm=make_llm(),
+        gh=make_gh(),
+        only=skill,
+        options=options,
     )
     _print_outcomes(outcomes)
 

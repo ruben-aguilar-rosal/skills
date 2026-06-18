@@ -20,7 +20,7 @@ from pathlib import Path
 
 from skillsync.config import Config, SkillPin, Source
 from skillsync.layout import SkillLayout, read_text, write_text
-from skillsync.pipeline import SyncOutcome, run_sync
+from skillsync.pipeline import SyncOptions, SyncOutcome, run_sync
 from skillsync.ports.llm import LLMResult
 from skillsync.testing.fakes import FakeGh, FakeGit, FakeLLM
 
@@ -149,6 +149,129 @@ def test_no_change_is_skipped(tmp_path: Path) -> None:
     assert llm.calls == []
     assert gh.calls == []
     assert _pin(config).synced_sha == "sha2"
+
+
+# --- local mode (--no-pr) -------------------------------------------------------
+
+
+def test_no_pr_writes_artifacts_bumps_sha_without_pr(tmp_path: Path) -> None:
+    """`--no-pr` adapts and writes to the working tree, bumps the sha, opens no PR."""
+    config = _config(synced_sha="sha1")
+    git = _changed_git()
+    layout = SkillLayout.resolve(tmp_path, "skills/demo")
+    write_text(layout.skill_md_path, _UPSTREAM_OLD)
+    llm = FakeLLM({_ADVISORY_KEY: _advisory(), _PATCH_KEY: _adapt(_ADAPTED_VALID)})
+    gh = FakeGh()
+
+    outcomes = run_sync(
+        config, tmp_path, git=git, llm=llm, gh=gh, options=SyncOptions(open_pr=False)
+    )
+
+    assert [o.status for o in outcomes] == ["local"]
+    # The adapted artifacts landed in the working tree...
+    assert read_text(layout.skill_md_path) == _ADAPTED_VALID
+    assert read_text(layout.generated_skill_md_path) == _ADAPTED_VALID
+    # ...the sha bumped (the change is recorded as synced)...
+    assert _pin(config).synced_sha == "sha2"
+    # ...but nothing touched git/GitHub.
+    assert gh.calls == []
+
+
+def test_skip_advisory_omits_the_scan_but_still_ships(tmp_path: Path) -> None:
+    """`run_advisory=False` skips the advisory LLM call on the way to a PR."""
+    config = _config(synced_sha="sha1")
+    git = _changed_git()
+    layout = SkillLayout.resolve(tmp_path, "skills/demo")
+    write_text(layout.skill_md_path, _UPSTREAM_OLD)
+    # No advisory response scripted: the scan running would raise on the fake.
+    llm = FakeLLM({_PATCH_KEY: _adapt(_ADAPTED_VALID)})
+    gh = FakeGh()
+
+    outcomes = run_sync(
+        config, tmp_path, git=git, llm=llm, gh=gh, options=SyncOptions(run_advisory=False)
+    )
+
+    assert outcomes[0].status == "pr"
+    assert not any(_ADVISORY_KEY in c.prompt for c in llm.calls)
+    # The PR body is honest that the scan was skipped.
+    body = next(c for c in gh.calls if c.method == "open_pr").args[3]
+    assert "skipped" in body.lower()
+
+
+def test_skip_reconcile_leaves_drift_unfolded(tmp_path: Path) -> None:
+    """`run_reconcile=False` skips fold-back/verify even when a hand-edit drift exists."""
+    config = _config(synced_sha="sha1")
+    git = _changed_git()
+    layout = SkillLayout.resolve(tmp_path, "skills/demo")
+    write_text(layout.generated_skill_md_path, _UPSTREAM_OLD)
+    write_text(layout.skill_md_path, _UPSTREAM_OLD + "A hand-edited line.\n")
+    write_text(layout.adaptation_path, "rules")
+    # Only advisory + patch are scripted; fold-back/verify would raise if invoked.
+    llm = FakeLLM({_ADVISORY_KEY: _advisory(), _PATCH_KEY: _adapt(_ADAPTED_VALID)})
+
+    outcomes = run_sync(
+        config,
+        tmp_path,
+        git=git,
+        llm=llm,
+        gh=FakeGh(),
+        options=SyncOptions(run_reconcile=False),
+    )
+
+    assert outcomes[0].status == "pr"
+    prompts = [c.prompt for c in llm.calls]
+    assert not any(_FOLDBACK_KEY in p for p in prompts)
+    assert not any(_VERIFY_KEY in p for p in prompts)
+    # The adaptation rules were left untouched (no fold-back write-back).
+    assert read_text(layout.adaptation_path) == "rules"
+
+
+def test_skip_validate_writes_even_an_invalid_skill(tmp_path: Path) -> None:
+    """`run_validate=False` writes a malformed SKILL.md instead of blocking it."""
+    config = _config(synced_sha="sha1")
+    git = _changed_git()
+    layout = SkillLayout.resolve(tmp_path, "skills/demo")
+    write_text(layout.skill_md_path, _UPSTREAM_OLD)
+    llm = FakeLLM({_ADVISORY_KEY: _advisory(), _PATCH_KEY: _adapt(_ADAPTED_INVALID)})
+    gh = FakeGh()
+
+    outcomes = run_sync(
+        config,
+        tmp_path,
+        git=git,
+        llm=llm,
+        gh=gh,
+        options=SyncOptions(open_pr=False, run_validate=False),
+    )
+
+    assert [o.status for o in outcomes] == ["local"]
+    # The invalid output was written rather than rejected.
+    assert read_text(layout.skill_md_path) == _ADAPTED_INVALID
+    assert not any(c.method == "open_issue" for c in gh.calls)
+
+
+def test_gate_failure_still_quarantines_in_local_mode(tmp_path: Path) -> None:
+    """The deterministic gate is not skippable: a secret quarantines even with --no-pr."""
+    config = _config(synced_sha="sha1")
+    git = FakeGit()
+    git.add_commit("sha1", {"skills/demo/SKILL.md": _UPSTREAM_OLD})
+    poisoned = _UPSTREAM_NEW + "\nAKIAIOSFODNN7EXAMPLE\n"
+    git.add_commit("sha2", {"skills/demo/SKILL.md": poisoned})
+    git.set_ref("main", "sha2")
+    llm = FakeLLM({})
+
+    outcomes = run_sync(
+        config,
+        tmp_path,
+        git=git,
+        llm=llm,
+        gh=FakeGh(),
+        options=SyncOptions(open_pr=False),
+    )
+
+    assert [o.status for o in outcomes] == ["quarantined"]
+    # The skill stays pinned at the OLD sha — no local write happened either.
+    assert _pin(config).synced_sha == "sha1"
 
 
 # --- gate fail -> quarantine ----------------------------------------------------

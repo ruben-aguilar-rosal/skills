@@ -48,7 +48,35 @@ _DEFAULT_MODEL = "opus"
 # The flag raised when post-fold-back verification cannot confirm a hand-edit.
 _NOT_PRESERVED_FLAG = "⚠ hand-edit may not be preserved"
 
-Status = Literal["pr", "quarantined", "invalid", "skipped"]
+# Placeholder advisory verdict used when `--skip-advisory` turns the scan off but a
+# PR is still opened: the body must be honest that no scan ran rather than implying a
+# clean one did.
+_SKIPPED_ADVISORY = AdvisoryVerdict(
+    risk="low",
+    rationale="advisory scan skipped (--skip-advisory); not run for this skill",
+    findings=[],
+)
+
+Status = Literal["pr", "local", "quarantined", "invalid", "skipped"]
+
+
+@dataclass(frozen=True)
+class SyncOptions:
+    """Per-run stage toggles for `run_sync` (the deterministic gate always runs).
+
+    `open_pr` is the only switch that touches git/GitHub: when False (the CLI's
+    `--no-pr`) the pipeline still adapts, writes the artifacts to the working tree,
+    and bumps `synced_sha`, but stops before the branch/commit/PR so the generated
+    files can be inspected and linked locally. The other three turn off optional
+    stages — the advisory LLM scan, the drift reconcile + preservation verify, and
+    the blocking validation — for faster, quota-light local iteration. `adapt` and
+    the deterministic security gate cannot be skipped.
+    """
+
+    open_pr: bool = True
+    run_advisory: bool = True
+    run_reconcile: bool = True
+    run_validate: bool = True
 
 
 @dataclass
@@ -76,18 +104,23 @@ def run_sync(
     gh: GhPort,
     only: str | None = None,
     model: str = _DEFAULT_MODEL,
+    options: SyncOptions | None = None,
 ) -> list[SyncOutcome]:
     """Run the full sync pipeline over every changed, non-held skill in `config`.
 
     Detects upstream changes, then for each changed skill runs the gate, advisory
     scan, drift reconcile, adapt, preservation verify, and validate stages, opening
     a PR on success or an issue on quarantine/validation failure. `only` restricts
-    the run to the skill of that folder name. The matching pins in `config` are
-    mutated — and the config saved to `root/sources.yaml` — only when a PR opens.
+    the run to the skill of that folder name. `options` (see `SyncOptions`) toggles
+    individual stages and the PR step — e.g. `open_pr=False` for a local run that
+    writes the adapted artifacts to the working tree without opening a PR. The
+    matching pins in `config` are mutated — and the config saved to
+    `root/sources.yaml` — whenever the artifacts are written (a PR or a local run).
 
     Returns one `SyncOutcome` per processed skill (a skill filtered out by `only`
     produces no outcome).
     """
+    options = options or SyncOptions()
     pins = _pins_by_path(config)
     outcomes: list[SyncOutcome] = []
     for changeset in detect(config, git, root):
@@ -106,6 +139,7 @@ def run_sync(
                 llm=llm,
                 gh=gh,
                 model=model,
+                options=options,
             )
         )
     return outcomes
@@ -132,6 +166,7 @@ def _sync_one(
     llm: LLMPort,
     gh: GhPort,
     model: str,
+    options: SyncOptions,
 ) -> SyncOutcome:
     """Run the pipeline for a single skill and return its terminal outcome."""
     if changeset.kind == "none":
@@ -148,18 +183,23 @@ def _sync_one(
     repo_path = git.mirror(repo, ref)
     new_files = git.read_subtree_files(repo_path, ref, changeset.skill_path)
 
-    # 1. Deterministic security gate — runs BEFORE any agent reads upstream.
+    # 1. Deterministic security gate — runs BEFORE any agent reads upstream. This is
+    #    the load-bearing gate and is never skippable, even on a local run.
     gate = run_gate(changeset, new_files)
     if not gate.passed:
         return _quarantine(changeset, gate, gh, root)
 
-    # 2. Advisory LLM scan (defense-in-depth annotation, never a gate).
-    advisory = advisory_scan(changeset.diff, llm, model)
+    # 2. Advisory LLM scan (defense-in-depth annotation, never a gate). Optional.
+    advisory = (
+        advisory_scan(changeset.diff, llm, model)
+        if options.run_advisory
+        else _SKIPPED_ADVISORY
+    )
 
-    # 3. Reconcile any hand-edit drift into the adaptation rules.
+    # 3. Reconcile any hand-edit drift into the adaptation rules. Optional.
     skill_files = read_skill(layout)
     adaptation_text = skill_files.adaptation or ""
-    drift = detect_drift(skill_files)
+    drift = detect_drift(skill_files) if options.run_reconcile else None
     adaptation_summary: str | None = None
     if drift is not None:
         folded = fold_back(adaptation_text, drift, llm, model=model)
@@ -178,17 +218,31 @@ def _sync_one(
         if not verdict.preserved:
             adapt_result.flags.append(f"{_NOT_PRESERVED_FLAG}: {verdict.note}")
 
-    # 6. Deterministic validate — blocks the PR on a non-loadable skill.
-    validation = validate_skill(
-        layout, adapt_result.skill_md_text, DEFAULT_MAX_FILE_BYTES
-    )
-    if not validation.passed:
-        return _invalid(changeset, validation.errors, gh, root)
+    # 6. Deterministic validate — blocks the PR on a non-loadable skill. Optional:
+    #    a local run may skip it to inspect even a malformed generation.
+    if options.run_validate:
+        validation = validate_skill(
+            layout, adapt_result.skill_md_text, DEFAULT_MAX_FILE_BYTES
+        )
+        if not validation.passed:
+            return _invalid(changeset, validation.errors, gh, root)
 
-    # 7. Commit the artifacts, bump the pin, and open the PR.
+    # 7. Commit the artifacts and bump the pin. The artifacts land in the working
+    #    tree on every successful run; the sha bump records the new sync point.
     _write_artifacts(layout, new_files, adapt_result, adaptation_text, drift)
     pin.synced_sha = changeset.to_sha
     save_config(config, root / "sources.yaml")
+
+    # 8. Open the PR — unless this is a local (`--no-pr`) run, which stops here and
+    #    leaves the adapted files uncommitted in the working tree for inspection.
+    if not options.open_pr:
+        return SyncOutcome(
+            name=changeset.name,
+            skill_path=changeset.skill_path,
+            status="local",
+            detail="adapted locally; no PR opened (artifacts left in the working tree)",
+            flags=list(adapt_result.flags),
+        )
 
     skill_pr = build_pr(
         changeset, gate, advisory, adapt_result, adaptation_summary=adaptation_summary
