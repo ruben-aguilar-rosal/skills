@@ -142,6 +142,20 @@ def test_claude_argv_includes_prompt_and_json_format() -> None:
     assert result.json is None
 
 
+def test_claude_uses_custom_command_prefix() -> None:
+    """A custom `command` prefix wraps the prompt/flags instead of bare `claude`."""
+    runner = _RecordingRunner([_envelope("hello")])
+    cli = ClaudeCli(runner=runner, command=["zsh", "-ic", 'claude "$@"', "_"])
+
+    cli.complete("hi", schema=None, model="opus", temperature=0.0)
+
+    argv = runner.calls[0]
+    assert argv[:4] == ["zsh", "-ic", 'claude "$@"', "_"]
+    # The skillsync arguments are appended after the prefix, prompt intact as one arg.
+    assert argv[4:6] == ["-p", "hi"]
+    assert argv[argv.index("--output-format") + 1] == "json"
+
+
 def test_claude_omits_model_flag_when_model_blank() -> None:
     """No `--model` flag is added when the model is empty."""
     runner = _RecordingRunner([_envelope("hello")])

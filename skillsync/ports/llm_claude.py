@@ -21,6 +21,13 @@ _DEFAULT_MODEL = "opus"
 
 _DEFAULT_TIMEOUT = 120
 
+# The default command prefix the prompt/flags are appended to. A single bare
+# `claude` resolves on PATH. It is overridable (see `make_llm`) so installs where
+# `claude` is a shell function — needing its env set up first — can route through
+# an interactive shell, e.g. ["zsh", "-ic", 'claude "$@"', "_"], which keeps the
+# prompt a discrete argv element (no shell interpolation, no injection).
+_DEFAULT_COMMAND = ["claude"]
+
 # Appended to the prompt when a schema is requested, to coerce JSON-only output.
 _JSON_INSTRUCTION = (
     "\n\nRespond with a single JSON object only — no prose, no markdown fences, "
@@ -49,10 +56,18 @@ class ClaudeCli:
         self,
         runner: Runner | None = None,
         timeout: int = _DEFAULT_TIMEOUT,
+        command: list[str] | None = None,
     ) -> None:
-        """Configure the subprocess `runner` (injectable) and per-call timeout."""
+        """Configure the subprocess `runner`, per-call timeout, and command prefix.
+
+        `command` is the argv prefix the `-p <prompt>`/`--output-format`/`--model`
+        arguments are appended to; it defaults to `["claude"]`. Override it to route
+        through an interactive shell when `claude` is a shell function rather than a
+        bare binary on PATH.
+        """
         self._runner = runner or _default_runner
         self._timeout = timeout
+        self._command = list(command) if command else list(_DEFAULT_COMMAND)
 
     def complete(
         self,
@@ -88,7 +103,7 @@ class ClaudeCli:
 
     def _invoke(self, prompt: str, *, model: str, temperature: float) -> str:
         """Run `claude -p` once and return the result text from its JSON envelope."""
-        argv = ["claude", "-p", prompt, "--output-format", "json"]
+        argv = [*self._command, "-p", prompt, "--output-format", "json"]
         if model:
             argv += ["--model", model]
 

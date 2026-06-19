@@ -87,6 +87,21 @@ and removed skills and opens nothing (add `--open-issues` to file them on demand
 interactive usage). Patch-based generation keeps token use modest. Model: Opus for every
 agentic step.
 
+### Invoking `claude`
+
+The agentic steps (`add`, `sync`, `regen`, `reprofile`) shell out to headless `claude -p`. By
+default skillsync runs a bare `claude` on `PATH`. If your `claude` is a **shell function**
+(e.g. it exports Bedrock/model env vars before calling the real binary), a non-shell
+subprocess can't see it — set `SKILLSYNC_CLAUDE_CMD` to a prefix that runs it through your
+shell, and skillsync appends `-p <prompt> --output-format json --model …` to it:
+
+```sh
+export SKILLSYNC_CLAUDE_CMD='zsh -ic '\''claude "$@"'\'' _'
+```
+
+The prompt stays a discrete argv element (no shell interpolation). The deterministic commands
+(`detect`, `discover`, `status`, `link`, `validate`, `ignore`) never call `claude`.
+
 ## Consumption
 
 Personal use via symlink into the native skills dir:

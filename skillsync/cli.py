@@ -1,5 +1,7 @@
 """Typer CLI entry point for skillsync."""
 
+import os
+import shlex
 from pathlib import Path
 
 import typer
@@ -39,8 +41,17 @@ def make_git() -> GitPort:
 
 
 def make_llm() -> LLMPort:
-    """Construct the LLM port the agentic stages use (real headless `claude -p`)."""
-    return ClaudeCli()
+    """Construct the LLM port the agentic stages use (real headless `claude -p`).
+
+    By default it invokes a bare `claude` on PATH. When `claude` is a shell function
+    (so it needs the shell's env set up first), set `SKILLSYNC_CLAUDE_CMD` to the
+    command prefix that runs it, shell-split — e.g.
+    `SKILLSYNC_CLAUDE_CMD='zsh -ic claude\\ "$@" _'` — and skillsync appends
+    `-p <prompt> --output-format json --model …` to it.
+    """
+    raw = os.environ.get("SKILLSYNC_CLAUDE_CMD")
+    command = shlex.split(raw) if raw else None
+    return ClaudeCli(command=command)
 
 
 def make_gh() -> GhPort:
