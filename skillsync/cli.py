@@ -22,6 +22,7 @@ from skillsync.ports.git_cli import GitCli
 from skillsync.ports.llm import LLMPort
 from skillsync.ports.llm_claude import ClaudeCli
 from skillsync.stages.detect import detect
+from skillsync.stages.discover import discover
 from skillsync.stages.gate import DEFAULT_MAX_FILE_BYTES
 from skillsync.stages.validate import validate_skill
 
@@ -286,6 +287,51 @@ def _print_discoveries(notices: list[DiscoveryNotice]) -> None:
     width = max(len(n.skill_path) for n in notices)
     for notice in notices:
         typer.echo(f"  {notice.kind.ljust(7)} {notice.skill_path.ljust(width)}  {notice.url}")
+
+
+@app.command(name="discover")
+def discover_cmd(
+    config_path: Path = typer.Option(
+        Path("sources.yaml"), "--config", help="Path to sources.yaml."
+    ),
+    root: Path = typer.Option(Path("."), help="Repo root (passed to the git port)."),
+    open_issues: bool = typer.Option(
+        False,
+        "--open-issues",
+        help="Also file an awareness issue per finding (like sync does).",
+    ),
+) -> None:
+    """Preview new/removed skills in watched folders; opens nothing by default.
+
+    Runs the deterministic discovery stage and prints each new (appeared upstream,
+    not yet tracked) or removed (pinned but gone upstream) skill. Read-only unless
+    `--open-issues` is passed, which files the same idempotent awareness issues a
+    full `sync` would — handy for surfacing them without running the whole pipeline.
+    """
+    try:
+        config = load_config(config_path)
+    except ConfigError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    for warning in config.warnings:
+        typer.echo(f"warning: {warning}", err=True)
+
+    git = make_git()
+    if open_issues:
+        _print_discoveries(surface_discoveries(config, root, git=git, gh=make_gh()))
+        return
+
+    findings = discover(config, git, root)
+    if not findings:
+        typer.echo("no watched-folder discoveries (nothing new or removed upstream)")
+        return
+
+    typer.echo(f"{len(findings)} watched-folder discovery(ies):")
+    width = max(len(f.skill_path) for f in findings)
+    for finding in findings:
+        typer.echo(f"  {finding.kind.ljust(7)} {finding.skill_path.ljust(width)}  ({finding.repo})")
+    typer.echo("\nadopt: skillsync add <repo> <path>   reject: skillsync ignore <repo> <path>")
 
 
 @app.command(name="add")

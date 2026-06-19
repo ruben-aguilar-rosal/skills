@@ -291,6 +291,106 @@ def test_sync_surfaces_watched_folder_discovery(
     )
 
 
+def _watch_config(tmp_path: Path) -> tuple[Path, FakeGit]:
+    """A config watching `eng/` with `eng/demo` pinned and `eng/extra` undiscovered."""
+    upstream = "---\nname: demo\ndescription: D.\n---\n\nbody\n"
+    git = FakeGit()
+    git.add_commit(
+        "sha1", {"eng/demo/SKILL.md": upstream, "eng/extra/SKILL.md": upstream}
+    )
+    git.set_ref("main", "sha1")
+    config_path = tmp_path / "sources.yaml"
+    config_path.write_text(
+        "sources:\n"
+        "  - repo: owner/repo\n"
+        "    ref: main\n"
+        "    watch:\n"
+        "      - eng/\n"
+        "    skills:\n"
+        "      - path: eng/demo\n"
+        "        synced_sha: sha1\n"
+    )
+    return config_path, git
+
+
+def test_discover_prints_findings_without_opening_issues(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`skillsync discover` lists new watched-folder skills and opens nothing."""
+    config_path, git = _watch_config(tmp_path)
+    gh = FakeGh()
+    monkeypatch.setattr(cli, "make_git", lambda: git)
+    monkeypatch.setattr(cli, "make_gh", lambda: gh)
+
+    result = RUNNER.invoke(
+        app, ["discover", "--config", str(config_path), "--root", str(tmp_path)]
+    )
+
+    assert result.exit_code == 0
+    assert "eng/extra" in result.stdout
+    assert "new" in result.stdout
+    # Read-only: nothing was filed.
+    assert gh.calls == []
+
+
+def test_discover_reports_nothing_cleanly(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`skillsync discover` reports cleanly when everything is already tracked."""
+    upstream = "---\nname: demo\ndescription: D.\n---\n\nbody\n"
+    git = FakeGit()
+    git.add_commit("sha1", {"eng/demo/SKILL.md": upstream})
+    git.set_ref("main", "sha1")
+    config_path = tmp_path / "sources.yaml"
+    config_path.write_text(
+        "sources:\n"
+        "  - repo: owner/repo\n"
+        "    ref: main\n"
+        "    watch:\n"
+        "      - eng/\n"
+        "    skills:\n"
+        "      - path: eng/demo\n"
+        "        synced_sha: sha1\n"
+    )
+    monkeypatch.setattr(cli, "make_git", lambda: git)
+    monkeypatch.setattr(cli, "make_gh", lambda: FakeGh())
+
+    result = RUNNER.invoke(
+        app, ["discover", "--config", str(config_path), "--root", str(tmp_path)]
+    )
+
+    assert result.exit_code == 0
+    assert "no" in result.stdout.lower()
+
+
+def test_discover_open_issues_flag_files_awareness_issues(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`skillsync discover --open-issues` files the awareness issues like sync does."""
+    config_path, git = _watch_config(tmp_path)
+    gh = FakeGh()
+    monkeypatch.setattr(cli, "make_git", lambda: git)
+    monkeypatch.setattr(cli, "make_gh", lambda: gh)
+
+    result = RUNNER.invoke(
+        app,
+        [
+            "discover",
+            "--config",
+            str(config_path),
+            "--root",
+            str(tmp_path),
+            "--open-issues",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "eng/extra" in result.stdout
+    assert any(
+        c.method == "open_issue" and "eng/extra" in c.args[1] for c in gh.calls
+    )
+
+
 def test_ignore_appends_to_ignore_list(tmp_path: Path) -> None:
     """`skillsync ignore` records the path so discovery stops surfacing it."""
     config_path = tmp_path / "sources.yaml"

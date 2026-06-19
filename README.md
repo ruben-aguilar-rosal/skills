@@ -37,6 +37,7 @@ uv pip install -e .          # or: pip install -e .
 | `skillsync add <repo> <skill-path>` | Onboard a new upstream skill: draft `adaptation.md` from `profile.md`, full-generate the first `SKILL.md`, open a PR. |
 | `skillsync sync [--skill <name>]` | Full pipeline per changed skill: detect → gate → reconcile → patch → verify → validate → PR. Then surfaces watched-folder discoveries (see below). |
 | `skillsync sync --no-pr` | Local mode: adapt and write the artifacts to the working tree (and bump the pin) without opening a PR — inspect and play with them first. Pair with `--skip-advisory` / `--skip-reconcile` / `--skip-validate` to turn off optional stages. The security gate and adapt always run. |
+| `skillsync discover [--open-issues]` | Preview new/removed skills in watched folders. Read-only by default (prints findings, opens nothing); `--open-issues` files the awareness issues like `sync` does. |
 | `skillsync ignore <repo> <skill-path>` | Record a durable "no" for a discovered skill, so future syncs stop surfacing it. The rejection counterpart to `add`. |
 | `skillsync regen <name> [--force]` | Regenerate one skill's `SKILL.md` from its on-disk `upstream/` + `adaptation.md` (a full rebuild; never bumps `synced_sha`). |
 | `skillsync reprofile` | Re-bake the current `profile.md` into every skill's `adaptation.md`, one PR per skill. |
@@ -76,6 +77,9 @@ When a new skill appears under a watched folder, `sync` opens a single **awarene
 
 A tracked skill that disappears upstream (deleted/renamed) is surfaced the same way. Adoption
 is always explicit, so Opus quota is only ever spent on skills you've chosen.
+
+To preview discoveries without filing anything, run `skillsync discover` — it prints the new
+and removed skills and opens nothing (add `--open-issues` to file them on demand).
 
 ### Cost framing
 
