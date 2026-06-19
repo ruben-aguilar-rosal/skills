@@ -63,7 +63,13 @@ class GhCli:
         body: str,
         labels: list[str],
     ) -> str:
-        """Open a PR for `branch` via `gh pr create`; return the printed URL."""
+        """Open a PR for `branch` via `gh pr create`; return the printed URL.
+
+        Ensures every label exists first — `gh pr create --label` errors on an
+        unknown label, and skillsync's labels (`skillsync`, `advisory-risk-*`, …)
+        won't pre-exist in a fresh repo.
+        """
+        self._ensure_labels(root, labels)
         self._run(root, "git", "push", "--set-upstream", "origin", branch)
         argv = [
             "gh",
@@ -83,11 +89,24 @@ class GhCli:
     def open_issue(
         self, root: Path, title: str, body: str, labels: list[str]
     ) -> str:
-        """Open an issue via `gh issue create`; return the printed URL."""
+        """Open an issue via `gh issue create`; return the printed URL.
+
+        Ensures every label exists first, for the same reason as `open_pr`.
+        """
+        self._ensure_labels(root, labels)
         argv = ["gh", "issue", "create", "--title", title, "--body", body]
         for label in labels:
             argv += ["--label", label]
         return self._run(root, *argv).strip()
+
+    def _ensure_labels(self, root: Path, labels: list[str]) -> None:
+        """Create each label if missing; `gh label create --force` is idempotent.
+
+        `--force` updates an existing label in place rather than failing, so this is
+        safe to call on every PR/issue open without first listing what exists.
+        """
+        for label in labels:
+            self._run(root, "gh", "label", "create", label, "--force")
 
     def find_issue(self, root: Path, title: str) -> str | None:
         """Return the URL of an existing OPEN issue with exactly `title`, else None.

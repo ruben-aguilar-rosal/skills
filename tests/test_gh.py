@@ -88,6 +88,30 @@ def test_gh_cli_open_pr_returns_url_and_builds_argv() -> None:
     assert gh_argv.count("--label") == 2
 
 
+def test_gh_cli_open_pr_ensures_labels_first() -> None:
+    """`open_pr` creates each label (idempotently) before `gh pr create`."""
+    runner = _ScriptedRunner({"gh pr": _ok("https://github.com/o/r/pull/7\n")})
+
+    GhCli(runner=runner).open_pr(ROOT, "skillsync/demo", "t", "b", ["skillsync", "onboarding"])
+
+    label_calls = [a for a in runner.calls if a[:3] == ["gh", "label", "create"]]
+    assert [a[3] for a in label_calls] == ["skillsync", "onboarding"]
+    assert all("--force" in a for a in label_calls)
+    # Labels are ensured before the PR is created.
+    pr_index = next(i for i, a in enumerate(runner.calls) if a[:2] == ["gh", "pr"])
+    assert all(runner.calls.index(a) < pr_index for a in label_calls)
+
+
+def test_gh_cli_open_issue_ensures_labels_first() -> None:
+    """`open_issue` also creates each label before `gh issue create`."""
+    runner = _ScriptedRunner({"gh issue": _ok("https://github.com/o/r/issues/3\n")})
+
+    GhCli(runner=runner).open_issue(ROOT, "t", "b", ["skillsync", "discovery"])
+
+    label_calls = [a for a in runner.calls if a[:3] == ["gh", "label", "create"]]
+    assert [a[3] for a in label_calls] == ["skillsync", "discovery"]
+
+
 def test_gh_cli_raises_gh_error_on_nonzero_exit() -> None:
     """A non-zero exit from a git/gh command surfaces as a typed GhError."""
     runner = _ScriptedRunner(
