@@ -6,12 +6,42 @@ import pytest
 from typer.testing import CliRunner
 
 from skillsync import __version__, cli
-from skillsync.cli import app
+from skillsync.cli import app, resolve_claude_command
 from skillsync.layout import write_text
 from skillsync.ports.llm import LLMResult
 from skillsync.testing.fakes import FakeGh, FakeGit, FakeLLM
 
 RUNNER = CliRunner()
+
+
+def test_resolve_claude_command_defaults_to_none() -> None:
+    """With no env override, the bare `claude` default is used (None)."""
+    assert resolve_claude_command({}) is None
+
+
+def test_resolve_claude_command_via_zsh_shorthand() -> None:
+    """`SKILLSYNC_CLAUDE_VIA_ZSH=1` yields the canned interactive-zsh prefix."""
+    assert resolve_claude_command({"SKILLSYNC_CLAUDE_VIA_ZSH": "1"}) == [
+        "zsh",
+        "-ic",
+        'claude "$@"',
+        "_",
+    ]
+
+
+def test_resolve_claude_command_explicit_cmd_wins() -> None:
+    """An explicit `SKILLSYNC_CLAUDE_CMD` is shell-split and takes precedence."""
+    env = {
+        "SKILLSYNC_CLAUDE_CMD": "bash -ic 'claude \"$@\"' _",
+        "SKILLSYNC_CLAUDE_VIA_ZSH": "1",
+    }
+    assert resolve_claude_command(env) == ["bash", "-ic", 'claude "$@"', "_"]
+
+
+def test_resolve_claude_command_ignores_falsey_zsh_flag() -> None:
+    """A non-truthy `SKILLSYNC_CLAUDE_VIA_ZSH` value does not trigger the prefix."""
+    assert resolve_claude_command({"SKILLSYNC_CLAUDE_VIA_ZSH": "0"}) is None
+    assert resolve_claude_command({"SKILLSYNC_CLAUDE_VIA_ZSH": ""}) is None
 
 
 def test_version_exits_zero_and_prints_version() -> None:

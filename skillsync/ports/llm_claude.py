@@ -115,8 +115,12 @@ class ClaudeCli:
             raise LLMError(f"claude could not be executed: {exc}") from exc
 
         if completed.returncode != 0:
+            # `claude --output-format json` often writes its real error to stdout,
+            # not stderr — include both so a non-zero exit is never opaque.
+            detail = completed.stderr.strip() or completed.stdout.strip() or "(no output)"
             raise LLMError(
-                f"claude failed ({completed.returncode}): {completed.stderr.strip()}"
+                f"claude failed ({completed.returncode}) for command "
+                f"{self._command!r}: {detail}"
             )
 
         return self._unwrap(completed.stdout)

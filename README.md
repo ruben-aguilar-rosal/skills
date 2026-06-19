@@ -92,14 +92,21 @@ agentic step.
 The agentic steps (`add`, `sync`, `regen`, `reprofile`) shell out to headless `claude -p`. By
 default skillsync runs a bare `claude` on `PATH`. If your `claude` is a **shell function**
 (e.g. it exports Bedrock/model env vars before calling the real binary), a non-shell
-subprocess can't see it — set `SKILLSYNC_CLAUDE_CMD` to a prefix that runs it through your
-shell, and skillsync appends `-p <prompt> --output-format json --model …` to it:
+subprocess can't see it — so route the call through your shell:
 
 ```sh
-export SKILLSYNC_CLAUDE_CMD='zsh -ic '\''claude "$@"'\'' _'
+export SKILLSYNC_CLAUDE_VIA_ZSH=1     # canned: zsh -ic 'claude "$@"' _
 ```
 
-The prompt stays a discrete argv element (no shell interpolation). The deterministic commands
+For a different shell or a custom invocation, set `SKILLSYNC_CLAUDE_CMD` to an explicit prefix
+instead (shell-split; it takes precedence over the shorthand):
+
+```sh
+export SKILLSYNC_CLAUDE_CMD='bash -ic '\''claude "$@"'\'' _'
+```
+
+skillsync appends `-p <prompt> --output-format json --model …` to whichever it resolves; the
+prompt stays a discrete argv element (no shell interpolation). The deterministic commands
 (`detect`, `discover`, `status`, `link`, `validate`, `ignore`) never call `claude`.
 
 ## Consumption

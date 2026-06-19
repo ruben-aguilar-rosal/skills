@@ -40,18 +40,40 @@ def make_git() -> GitPort:
     return GitCli()
 
 
+# The prefix that runs `claude` through an interactive zsh, so a `claude` shell
+# function (and the env it sets up) is in scope. The prompt/flags skillsync appends
+# land in `$@`; the trailing `_` is the placeholder for `$0`. The prompt stays a
+# discrete argv element — no shell interpolation, no injection.
+_ZSH_CLAUDE_COMMAND = ["zsh", "-ic", 'claude "$@"', "_"]
+
+
+def resolve_claude_command(env: "os._Environ[str] | dict[str, str]") -> list[str] | None:
+    """Resolve the `claude` invocation prefix from the environment.
+
+    Precedence:
+    1. `SKILLSYNC_CLAUDE_CMD` — an explicit, shell-split command prefix (full control).
+    2. `SKILLSYNC_CLAUDE_VIA_ZSH` truthy — the canned `zsh -ic 'claude "$@"' _`
+       prefix, the friendly shorthand for "my `claude` is a zsh function".
+    3. otherwise `None` — `ClaudeCli` falls back to a bare `claude` on PATH.
+    """
+    raw = env.get("SKILLSYNC_CLAUDE_CMD")
+    if raw:
+        return shlex.split(raw)
+    if env.get("SKILLSYNC_CLAUDE_VIA_ZSH", "").strip().lower() in {"1", "true", "yes"}:
+        return list(_ZSH_CLAUDE_COMMAND)
+    return None
+
+
 def make_llm() -> LLMPort:
     """Construct the LLM port the agentic stages use (real headless `claude -p`).
 
     By default it invokes a bare `claude` on PATH. When `claude` is a shell function
-    (so it needs the shell's env set up first), set `SKILLSYNC_CLAUDE_CMD` to the
-    command prefix that runs it, shell-split — e.g.
-    `SKILLSYNC_CLAUDE_CMD='zsh -ic claude\\ "$@" _'` — and skillsync appends
-    `-p <prompt> --output-format json --model …` to it.
+    (so it needs the shell's env set up first), either set `SKILLSYNC_CLAUDE_VIA_ZSH=1`
+    for the canned `zsh -ic 'claude "$@"' _` prefix, or set `SKILLSYNC_CLAUDE_CMD` to a
+    custom shell-split prefix. skillsync appends `-p <prompt> --output-format json
+    --model …` to whichever it resolves.
     """
-    raw = os.environ.get("SKILLSYNC_CLAUDE_CMD")
-    command = shlex.split(raw) if raw else None
-    return ClaudeCli(command=command)
+    return ClaudeCli(command=resolve_claude_command(os.environ))
 
 
 def make_gh() -> GhPort:
