@@ -29,6 +29,7 @@ from skillsync.layout import (
     SkillLayout,
     mirror_files,
     read_skill,
+    write_aux_files,
     write_text,
 )
 from skillsync.pr import build_pr, publish_pr
@@ -278,8 +279,9 @@ def _write_artifacts(
     adaptation_text: str,
     drift: str | None,
 ) -> None:
-    """Write the upstream mirror, SKILL.md, snapshot, and (if folded) adaptation.md."""
+    """Write the upstream mirror, aux files, SKILL.md, snapshot, and (if folded) adaptation.md."""
     mirror_files(new_files, layout.upstream_dir)
+    write_aux_files(layout, new_files)
     write_text(layout.skill_md_path, adapt_result.skill_md_text)
     write_text(layout.generated_skill_md_path, adapt_result.snapshot_text)
     if drift is not None:

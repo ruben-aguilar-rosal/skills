@@ -36,7 +36,7 @@ from skillsync.config import (
     save_config,
     skill_dest,
 )
-from skillsync.layout import SkillLayout, mirror_files, write_text
+from skillsync.layout import SkillLayout, mirror_files, write_aux_files, write_text
 from skillsync.pr import build_pr, publish_pr
 from skillsync.ports.gh import GhPort
 from skillsync.ports.git import GitPort
@@ -219,9 +219,11 @@ def _onboard_vendored(
     if not validation.passed:
         return _invalid(changeset, validation.errors, gh, root)
 
-    # Mirror the whole subtree and commit the upstream SKILL.md verbatim. No
-    # adaptation.md and no .generated snapshot — adaptation stays opt-in.
+    # Mirror the whole subtree, copy the ship-along aux files beside SKILL.md, and
+    # commit the upstream SKILL.md verbatim. No adaptation.md and no .generated
+    # snapshot — adaptation stays opt-in.
     mirror_files(new_files, layout.upstream_dir)
+    write_aux_files(layout, new_files)
     write_text(layout.skill_md_path, skill_md)
     pin.synced_sha = changeset.to_sha
     save_config(config, root / "sources.yaml")
@@ -361,8 +363,9 @@ def _write_artifacts(
     adapt_result: AdaptResult,
     adaptation_text: str,
 ) -> None:
-    """Write the upstream mirror, drafted adaptation.md, SKILL.md, and snapshot."""
+    """Write the upstream mirror, aux files, adaptation.md, SKILL.md, and snapshot."""
     mirror_files(new_files, layout.upstream_dir)
+    write_aux_files(layout, new_files)
     write_text(layout.adaptation_path, adaptation_text)
     write_text(layout.skill_md_path, adapt_result.skill_md_text)
     write_text(layout.generated_skill_md_path, adapt_result.snapshot_text)

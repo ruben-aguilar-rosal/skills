@@ -11,6 +11,7 @@ from skillsync.layout import (
     mirror_files,
     read_skill,
     read_text,
+    write_aux_files,
     write_text,
 )
 
@@ -21,7 +22,7 @@ def test_layout_resolves_paths_under_skills_dir(tmp_path: Path) -> None:
 
     assert layout.name == "to-issues"
     assert layout.root == tmp_path / "skills" / "to-issues"
-    assert layout.upstream_dir == layout.root / "upstream"
+    assert layout.upstream_dir == layout.root / ".upstream"
     assert layout.adaptation_path == layout.root / "adaptation.md"
     assert layout.skill_md_path == layout.root / "SKILL.md"
     assert layout.generated_dir == layout.root / ".generated"
@@ -67,6 +68,50 @@ def test_mirror_files_replaces_stale_contents(tmp_path: Path) -> None:
     assert read_text(dest / "SKILL.md") == "new"
     assert read_text(dest / "scripts" / "run.sh") is None
     assert not (dest / "scripts").exists()
+
+
+def test_write_aux_files_copies_non_skill_md_into_root(tmp_path: Path) -> None:
+    """`write_aux_files` lays the skill's ship-along files beside SKILL.md, not the .md."""
+    layout = SkillLayout.resolve(tmp_path, "demo")
+    new_files = {
+        "SKILL.md": "# demo\n",
+        "scripts/run.py": "print('hi')\n",
+        "references/guide.md": "guide\n",
+    }
+
+    write_aux_files(layout, new_files)
+
+    # The scripts/references the skill ships land in the skill folder root...
+    assert read_text(layout.root / "scripts" / "run.py") == "print('hi')\n"
+    assert read_text(layout.root / "references" / "guide.md") == "guide\n"
+    # ...but SKILL.md is NOT written here (it's owned by the adapt/vendor step).
+    assert read_text(layout.root / "SKILL.md") is None
+
+
+def test_write_aux_files_prunes_stale_aux(tmp_path: Path) -> None:
+    """A second call drops aux files no longer present upstream."""
+    layout = SkillLayout.resolve(tmp_path, "demo")
+    write_aux_files(layout, {"SKILL.md": "x", "scripts/old.py": "old"})
+
+    write_aux_files(layout, {"SKILL.md": "x", "scripts/new.py": "new"})
+
+    assert read_text(layout.root / "scripts" / "new.py") == "new"
+    assert read_text(layout.root / "scripts" / "old.py") is None
+
+
+def test_write_aux_files_preserves_committed_skill_files(tmp_path: Path) -> None:
+    """Pruning aux files never touches SKILL.md, adaptation.md, or .generated/."""
+    layout = SkillLayout.resolve(tmp_path, "demo")
+    write_text(layout.skill_md_path, "committed")
+    write_text(layout.adaptation_path, "rules")
+    write_text(layout.generated_skill_md_path, "snap")
+
+    write_aux_files(layout, {"SKILL.md": "x", "scripts/run.py": "code"})
+
+    assert read_text(layout.skill_md_path) == "committed"
+    assert read_text(layout.adaptation_path) == "rules"
+    assert read_text(layout.generated_skill_md_path) == "snap"
+    assert read_text(layout.root / "scripts" / "run.py") == "code"
 
 
 def test_read_skill_returns_none_for_absent_files(tmp_path: Path) -> None:

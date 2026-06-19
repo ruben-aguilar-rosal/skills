@@ -25,7 +25,14 @@ from pathlib import Path
 from typing import Literal
 
 from skillsync.config import Config, skill_dest
-from skillsync.layout import SkillLayout, mirror_files, read_text, read_tree, write_text
+from skillsync.layout import (
+    SkillLayout,
+    mirror_files,
+    read_text,
+    read_tree,
+    write_aux_files,
+    write_text,
+)
 from skillsync.pr import build_pr, publish_pr
 from skillsync.ports.gh import GhPort
 from skillsync.ports.llm import LLMPort
@@ -206,8 +213,9 @@ def _regen_changeset(layout: SkillLayout, upstream_files: dict[str, str]) -> Cha
 def _write_artifacts(
     layout: SkillLayout, upstream_files: dict[str, str], adapt_result: AdaptResult
 ) -> None:
-    """Write the regenerated SKILL.md, its snapshot, and re-mirror the upstream files."""
+    """Write the regenerated SKILL.md + snapshot, re-mirror upstream, refresh aux files."""
     mirror_files(upstream_files, layout.upstream_dir)
+    write_aux_files(layout, upstream_files)
     write_text(layout.skill_md_path, adapt_result.skill_md_text)
     write_text(layout.generated_skill_md_path, adapt_result.snapshot_text)
 

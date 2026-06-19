@@ -45,7 +45,7 @@ class SkillLayout:
         return cls(
             name=skill_name,
             root=root,
-            upstream_dir=root / "upstream",
+            upstream_dir=root / ".upstream",
             adaptation_path=root / "adaptation.md",
             skill_md_path=root / "SKILL.md",
             generated_dir=generated_dir,
@@ -85,6 +85,60 @@ def mirror_files(files: dict[str, str], dest_dir: Path) -> None:
         shutil.rmtree(dest_dir)
     for rel_path, content in files.items():
         write_text(dest_dir / rel_path, content)
+
+
+def write_aux_files(layout: "SkillLayout", upstream_files: dict[str, str]) -> None:
+    """Lay a skill's ship-along files (everything but SKILL.md) into the skill root.
+
+    The committed/generated `SKILL.md` is owned by the adapt/vendor step; every OTHER
+    file the upstream subtree ships — `scripts/`, `references/`, `assets/`, … — is
+    copied verbatim alongside it so the linked skill actually works (the script a
+    `SKILL.md` references must sit next to it, not only in the `.upstream` mirror).
+
+    Aux files written by a previous sync but absent from `upstream_files` are pruned,
+    while the skill-owned paths (`SKILL.md`, `adaptation.md`, `.generated/`,
+    `.upstream/`) are always left untouched.
+    """
+    desired = {rel: content for rel, content in upstream_files.items() if rel != "SKILL.md"}
+
+    for stale in _stale_aux_paths(layout, set(desired)):
+        stale.unlink()
+    for rel_path, content in desired.items():
+        write_text(layout.root / rel_path, content)
+    _prune_empty_dirs(layout)
+
+
+# Top-level skill-folder entries that `write_aux_files` must never write or prune.
+_RESERVED_ROOT_NAMES = {"SKILL.md", "adaptation.md", ".generated", ".upstream"}
+
+
+def _stale_aux_paths(layout: "SkillLayout", desired: set[str]) -> list[Path]:
+    """Aux files currently under the skill root that are not in `desired`."""
+    if not layout.root.is_dir():
+        return []
+    stale: list[Path] = []
+    for path in layout.root.rglob("*"):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(layout.root)
+        if rel.parts[0] in _RESERVED_ROOT_NAMES:
+            continue
+        if rel.as_posix() not in desired:
+            stale.append(path)
+    return stale
+
+
+def _prune_empty_dirs(layout: "SkillLayout") -> None:
+    """Remove now-empty aux directories left under the skill root after pruning."""
+    if not layout.root.is_dir():
+        return
+    for path in sorted(layout.root.rglob("*"), key=lambda p: len(p.parts), reverse=True):
+        if (
+            path.is_dir()
+            and path.name not in _RESERVED_ROOT_NAMES
+            and not any(path.iterdir())
+        ):
+            path.rmdir()
 
 
 def read_tree(directory: Path) -> dict[str, str]:

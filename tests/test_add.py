@@ -128,6 +128,28 @@ def test_add_vendor_pr_is_labelled_vendored(tmp_path: Path) -> None:
     assert "vendored" in labels
 
 
+def test_add_vendor_copies_ship_along_scripts(tmp_path: Path) -> None:
+    """A vendored skill's scripts land beside SKILL.md, not only in the .upstream mirror."""
+    config = Config(sources=[])
+    git = FakeGit()
+    git.add_commit(
+        "sha1",
+        {
+            "skills/demo/SKILL.md": _UPSTREAM,
+            "skills/demo/scripts/run.py": "print('go')\n",
+        },
+    )
+    git.set_ref("main", "sha1")
+
+    run_add(config, tmp_path, "owner/repo", "skills/demo", git=git, llm=FakeLLM({}), gh=FakeGh())
+
+    layout = SkillLayout.resolve(tmp_path, "skills/demo")
+    # The script the skill ships sits in the skill folder root (so the link works)...
+    assert read_text(layout.root / "scripts" / "run.py") == "print('go')\n"
+    # ...and also in the pristine .upstream mirror (the security surface).
+    assert read_text(layout.upstream_dir / "scripts" / "run.py") == "print('go')\n"
+
+
 def test_add_no_pr_writes_locally_without_a_pr(tmp_path: Path) -> None:
     """`open_pr=False` vendors the skill to the working tree and opens no PR."""
     config = Config(sources=[])

@@ -17,9 +17,10 @@ See [`PLAN.md`](./PLAN.md) for the full design and the hardening rationale.
 sources.yaml          # allowlist of upstream repos + skill paths + pinned SHAs
 profile.md            # author-time context (stack/tone), baked into each adaptation.md
 skills/<name>/        # one folder per skill (the dest dir is configurable, see below)
-  upstream/           # pristine mirror of the whole upstream subtree (never hand-edited)
+  .upstream/          # pristine mirror of the whole upstream subtree (never hand-edited)
   adaptation.md       # self-contained adaptation rules — PRESENT only for adapted skills
   SKILL.md            # the committed skill (vendored verbatim, or a patch-generated artifact)
+  scripts/ …          # the skill's ship-along files, copied beside SKILL.md so the link works
   .generated/         # snapshot of last agent output (drift detection; adapted skills only)
 skillsync/            # the Python CLI (see Architecture below)
 ```
@@ -44,7 +45,7 @@ uv pip install -e .          # or: pip install -e .
 | `skillsync sync --no-pr` | Local mode: adapt and write the artifacts to the working tree (and bump the pin) without opening a PR — inspect and play with them first. Pair with `--skip-advisory` / `--skip-reconcile` / `--skip-validate` to turn off optional stages. The security gate and adapt always run. |
 | `skillsync discover [--open-issues]` | Preview new/removed skills in watched folders. Read-only by default (prints findings, opens nothing); `--open-issues` files the awareness issues like `sync` does. |
 | `skillsync ignore <repo> <skill-path>` | Record a durable "no" for a discovered skill, so future syncs stop surfacing it. The rejection counterpart to `add`. |
-| `skillsync regen <name> [--force]` | Regenerate one skill's `SKILL.md` from its on-disk `upstream/` + `adaptation.md` (a full rebuild; never bumps `synced_sha`). |
+| `skillsync regen <name> [--force]` | Regenerate one skill's `SKILL.md` from its on-disk `.upstream/` + `adaptation.md` (a full rebuild; never bumps `synced_sha`). |
 | `skillsync reprofile` | Re-bake the current `profile.md` into every skill's `adaptation.md`, one PR per skill. |
 | `skillsync link [--dry-run]` | Symlink each `skills/<name>/` into the native skills dir (`$SKILLSYNC_LINK_DIR`, else `~/.claude/skills`). Idempotent; skips non-symlink conflicts. |
 | `skillsync status [--offline]` | Per skill: short `synced_sha`, upstream-ahead, `SKILL.md`-vs-`.generated` drift, and link state. |
