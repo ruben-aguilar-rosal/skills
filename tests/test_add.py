@@ -128,6 +128,48 @@ def test_add_vendor_pr_is_labelled_vendored(tmp_path: Path) -> None:
     assert "vendored" in labels
 
 
+def test_add_no_pr_writes_locally_without_a_pr(tmp_path: Path) -> None:
+    """`open_pr=False` vendors the skill to the working tree and opens no PR."""
+    config = Config(sources=[])
+    git = _git()
+    gh = FakeGh()
+
+    outcome = run_add(
+        config, tmp_path, "owner/repo", "skills/demo", git=git, llm=FakeLLM({}), gh=gh,
+        open_pr=False,
+    )
+
+    assert outcome.status == "local"
+    layout = SkillLayout.resolve(tmp_path, "skills/demo")
+    # The skill landed in the working tree...
+    assert read_text(layout.skill_md_path) == _UPSTREAM
+    # ...the pin bumped...
+    assert _pin(config).synced_sha == "sha1"
+    # ...but git/GitHub was never touched.
+    assert gh.calls == []
+
+
+def test_add_no_pr_adapt_writes_locally(tmp_path: Path) -> None:
+    """`open_pr=False` with `--adapt` generates locally and opens no PR."""
+    config = Config(sources=[])
+    _write_profile(tmp_path)
+    llm = FakeLLM(
+        {_ADVISORY_KEY: _advisory(), _DRAFT_KEY: _draft(), _FULL_KEY: _full(_ADAPTED_VALID)}
+    )
+    gh = FakeGh()
+
+    outcome = run_add(
+        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=gh,
+        adapt=True, open_pr=False,
+    )
+
+    assert outcome.status == "local"
+    layout = SkillLayout.resolve(tmp_path, "skills/demo")
+    assert read_text(layout.skill_md_path) == _ADAPTED_VALID
+    assert read_text(layout.adaptation_path) == _DRAFTED_ADAPTATION
+    assert gh.calls == []
+
+
 def test_add_vendor_still_quarantines_on_gate_fail(tmp_path: Path) -> None:
     """Vendoring still runs the security gate — a secret quarantines without a PR."""
     config = Config(sources=[])

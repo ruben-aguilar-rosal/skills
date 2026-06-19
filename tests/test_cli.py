@@ -495,6 +495,33 @@ def test_add_vendors_by_default(
     assert not (tmp_path / "skills" / "demo" / "adaptation.md").exists()
 
 
+def test_add_no_pr_writes_locally(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`skillsync add --no-pr` vendors to the working tree and opens no PR."""
+    upstream = "---\nname: demo\ndescription: D.\n---\n\n# demo\nbody\n"
+    git = FakeGit()
+    git.add_commit("sha1", {"skills/demo/SKILL.md": upstream})
+    git.set_ref("main", "sha1")
+    gh = FakeGh()
+    monkeypatch.setattr(cli, "make_git", lambda: git)
+    monkeypatch.setattr(cli, "make_llm", lambda: FakeLLM({}))
+    monkeypatch.setattr(cli, "make_gh", lambda: gh)
+
+    config_path = tmp_path / "sources.yaml"
+    config_path.write_text("sources: []\n")
+
+    result = RUNNER.invoke(
+        app,
+        ["add", "owner/repo", "skills/demo", "--no-pr", "--config", str(config_path), "--root", str(tmp_path)],
+    )
+
+    assert result.exit_code == 0
+    assert "local" in result.stdout
+    assert (tmp_path / "skills" / "demo" / "SKILL.md").read_text() == upstream
+    assert not any(c.method == "open_pr" for c in gh.calls)
+
+
 def test_add_adapt_flag_drafts_and_generates(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

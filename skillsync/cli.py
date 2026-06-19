@@ -392,6 +392,11 @@ def add_cmd(
     dest: str | None = typer.Option(
         None, "--dest", help="Parent dir to store the skill under (default skills/)."
     ),
+    no_pr: bool = typer.Option(
+        False,
+        "--no-pr",
+        help="Write the skill to the working tree without opening a PR.",
+    ),
 ) -> None:
     """Onboard a new upstream skill and open a PR.
 
@@ -400,7 +405,8 @@ def add_cmd(
     SKILL.md as-is, validates, and opens a `vendored` PR. Adaptation is opt-in —
     pass `--adapt` to instead draft a self-contained adaptation.md from profile.md
     and full-generate the first SKILL.md (an `onboarding` PR). `--dest` overrides
-    where the skill folder is stored, to group skills from different repos.
+    where the skill folder is stored, to group skills from different repos. `--no-pr`
+    writes the skill to the working tree and stops, opening no PR.
     """
     try:
         config = load_config(config_path)
@@ -422,6 +428,7 @@ def add_cmd(
         ref=ref,
         adapt=adapt,
         dest=dest,
+        open_pr=not no_pr,
     )
     suffix = f"  {outcome.url}" if outcome.url else ""
     typer.echo(f"{outcome.name}  {outcome.status}{suffix}")

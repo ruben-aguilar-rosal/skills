@@ -101,7 +101,7 @@ Return JSON matching the schema: \
 {{"adaptation_md": "<the full self-contained adaptation.md text>"}}.
 """
 
-Status = Literal["pr", "quarantined", "invalid"]
+Status = Literal["pr", "local", "quarantined", "invalid"]
 
 
 @dataclass
@@ -132,6 +132,7 @@ def run_add(
     ref: str = "main",
     adapt: bool = False,
     dest: str | None = None,
+    open_pr: bool = True,
     model: str = _DEFAULT_MODEL,
 ) -> AddOutcome:
     """Onboard the upstream skill at `repo`/`skill_path`, returning its outcome.
@@ -147,10 +148,13 @@ def run_add(
       `profile.md` plus the upstream SKILL.md, full-generate the first `SKILL.md`,
       and write the adaptation + snapshot.
 
-    Either path validates the result and opens a PR (`vendored` or `onboarding`
-    labelled); the pin's `synced_sha` is set to the upstream head only when the PR
-    opens. A gate or validation failure opens an issue and leaves the pin unsynced.
-    `dest` overrides where the skill folder is stored (default `skills/`).
+    Either path validates the result and writes the skill to the working tree, then
+    — unless `open_pr=False` — opens a PR (`vendored` or `onboarding` labelled). With
+    `open_pr=False` (the CLI's `--no-pr`) it stops after writing, leaving the skill
+    uncommitted for inspection (status `local`). The pin's `synced_sha` is set to the
+    upstream head whenever the artifacts are written (a PR or a local add). A gate or
+    validation failure opens an issue and leaves the pin unsynced. `dest` overrides
+    where the skill folder is stored (default `skills/`).
     """
     pin = _register_pin(config, root, repo, skill_path, ref, dest)
     name = skill_path.rstrip("/").rsplit("/", 1)[-1]
@@ -178,7 +182,17 @@ def run_add(
 
     handler = _onboard_adapted if adapt else _onboard_vendored
     return handler(
-        config, root, pin, layout, changeset, new_files, gate, gh=gh, llm=llm, model=model
+        config,
+        root,
+        pin,
+        layout,
+        changeset,
+        new_files,
+        gate,
+        gh=gh,
+        llm=llm,
+        model=model,
+        open_pr=open_pr,
     )
 
 
@@ -194,6 +208,7 @@ def _onboard_vendored(
     gh: GhPort,
     llm: LLMPort,
     model: str,
+    open_pr: bool,
 ) -> AddOutcome:
     """Vendor the upstream skill verbatim: no LLM, no adaptation.md, gate+validate+PR."""
     skill_md = _find_skill_md(new_files)
@@ -212,16 +227,8 @@ def _onboard_vendored(
     save_config(config, root / "sources.yaml")
 
     vendored = AdaptResult(skill_md_text=skill_md, snapshot_text=skill_md, flags=[])
-    skill_pr = build_pr(
-        changeset, gate, _VENDORED_ADVISORY, vendored, extra_labels=[_VENDORED_LABEL]
-    )
-    url = publish_pr(skill_pr, gh, root)
-    return AddOutcome(
-        name=changeset.name,
-        skill_path=changeset.skill_path,
-        status="pr",
-        url=url,
-        detail=skill_pr.title,
+    return _open_or_local(
+        changeset, gate, _VENDORED_ADVISORY, vendored, _VENDORED_LABEL, gh, root, open_pr
     )
 
 
@@ -237,6 +244,7 @@ def _onboard_adapted(
     gh: GhPort,
     llm: LLMPort,
     model: str,
+    open_pr: bool,
 ) -> AddOutcome:
     """Draft adaptation.md, full-generate, validate, and open an `onboarding` PR."""
     # 2. Advisory LLM scan (defense-in-depth annotation, never a gate).
@@ -257,14 +265,41 @@ def _onboard_adapted(
     if not validation.passed:
         return _invalid(changeset, validation.errors, gh, root)
 
-    # 6. Commit the artifacts, bump the pin, and open the onboarding PR.
+    # 6. Write the artifacts and bump the pin.
     _write_artifacts(layout, new_files, adapt_result, adaptation_text)
     pin.synced_sha = changeset.to_sha
     save_config(config, root / "sources.yaml")
 
-    skill_pr = build_pr(
-        changeset, gate, advisory, adapt_result, extra_labels=[_ONBOARDING_LABEL]
+    return _open_or_local(
+        changeset, gate, advisory, adapt_result, _ONBOARDING_LABEL, gh, root, open_pr
     )
+
+
+def _open_or_local(
+    changeset: ChangeSet,
+    gate: GateResult,
+    advisory: AdvisoryVerdict,
+    adapt_result: AdaptResult,
+    label: str,
+    gh: GhPort,
+    root: Path,
+    open_pr: bool,
+) -> AddOutcome:
+    """Open the onboarding PR, or stop with a `local` outcome when `open_pr` is False.
+
+    The artifacts are already written to the working tree by the caller, so a local
+    add leaves the skill there (uncommitted) for inspection without touching git.
+    """
+    if not open_pr:
+        return AddOutcome(
+            name=changeset.name,
+            skill_path=changeset.skill_path,
+            status="local",
+            detail="onboarded locally; no PR opened (skill left in the working tree)",
+            flags=list(adapt_result.flags),
+        )
+
+    skill_pr = build_pr(changeset, gate, advisory, adapt_result, extra_labels=[label])
     url = publish_pr(skill_pr, gh, root)
     return AddOutcome(
         name=changeset.name,

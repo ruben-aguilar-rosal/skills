@@ -39,7 +39,7 @@ uv pip install -e .          # or: pip install -e .
 
 | Command | What it does |
 | ------- | ------------ |
-| `skillsync add <repo> <skill-path> [--dest <dir>]` | Onboard a new upstream skill. Default **vendors** it verbatim (no LLM); `--adapt` instead drafts `adaptation.md` from `profile.md` and full-generates `SKILL.md`. `--dest` sets where the skill folder is stored. |
+| `skillsync add <repo> <skill-path> [--dest <dir>] [--no-pr]` | Onboard a new upstream skill. Default **vendors** it verbatim (no LLM); `--adapt` instead drafts `adaptation.md` from `profile.md` and full-generates `SKILL.md`. `--dest` sets where the skill folder is stored. `--no-pr` writes the skill to the working tree and opens no PR. |
 | `skillsync sync [--skill <name>]` | Full pipeline per changed skill: detect → gate → reconcile → patch → verify → validate → PR. Then surfaces watched-folder discoveries (see below). |
 | `skillsync sync --no-pr` | Local mode: adapt and write the artifacts to the working tree (and bump the pin) without opening a PR — inspect and play with them first. Pair with `--skip-advisory` / `--skip-reconcile` / `--skip-validate` to turn off optional stages. The security gate and adapt always run. |
 | `skillsync discover [--open-issues]` | Preview new/removed skills in watched folders. Read-only by default (prints findings, opens nothing); `--open-issues` files the awareness issues like `sync` does. |
