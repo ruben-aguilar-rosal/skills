@@ -50,3 +50,12 @@ class GhPort(Protocol):
         failure — where the pipeline must surface the problem without a branch.
         """
         ...
+
+    def find_issue(self, root: Path, title: str) -> str | None:
+        """Return the URL of an existing OPEN issue with exactly `title`, else None.
+
+        Lets the caller open awareness issues idempotently: discovery surfaces the
+        same new/removed skill every run, so the sync loop reuses an existing issue
+        instead of filing a duplicate each time.
+        """
+        ...

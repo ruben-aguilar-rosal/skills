@@ -251,6 +251,78 @@ def test_sync_no_pr_adapts_locally_without_opening_a_pr(
     assert not any(c.method == "open_pr" for c in gh.calls)
 
 
+def test_sync_surfaces_watched_folder_discovery(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`skillsync sync` surfaces a new watched-folder skill as an awareness issue."""
+    upstream = "---\nname: demo\ndescription: D.\n---\n\nbody\n"
+    git = FakeGit()
+    # The watched folder holds two skills; only `demo` is pinned, `extra` is new.
+    git.add_commit(
+        "sha1",
+        {"eng/demo/SKILL.md": upstream, "eng/extra/SKILL.md": upstream},
+    )
+    git.set_ref("main", "sha1")
+    gh = FakeGh()
+    monkeypatch.setattr(cli, "make_git", lambda: git)
+    monkeypatch.setattr(cli, "make_llm", lambda: FakeLLM({}))
+    monkeypatch.setattr(cli, "make_gh", lambda: gh)
+
+    config_path = tmp_path / "sources.yaml"
+    config_path.write_text(
+        "sources:\n"
+        "  - repo: owner/repo\n"
+        "    ref: main\n"
+        "    watch:\n"
+        "      - eng/\n"
+        "    skills:\n"
+        "      - path: eng/demo\n"
+        "        synced_sha: sha1\n"  # already synced -> no adapt work
+    )
+
+    result = RUNNER.invoke(
+        app, ["sync", "--config", str(config_path), "--root", str(tmp_path)]
+    )
+
+    assert result.exit_code == 0
+    assert "eng/extra" in result.stdout
+    assert any(
+        c.method == "open_issue" and "eng/extra" in c.args[1] for c in gh.calls
+    )
+
+
+def test_ignore_appends_to_ignore_list(tmp_path: Path) -> None:
+    """`skillsync ignore` records the path so discovery stops surfacing it."""
+    config_path = tmp_path / "sources.yaml"
+    config_path.write_text(
+        "sources:\n  - repo: owner/repo\n    ref: main\n    skills: []\n"
+    )
+
+    result = RUNNER.invoke(
+        app, ["ignore", "owner/repo", "eng/extra", "--config", str(config_path)]
+    )
+
+    assert result.exit_code == 0
+    from skillsync.config import load_config
+
+    assert load_config(config_path).sources[0].ignore == ["eng/extra"]
+
+
+def test_ignore_unknown_repo_exits_one(tmp_path: Path) -> None:
+    """`skillsync ignore` for an unconfigured repo exits 1 with a message."""
+    config_path = tmp_path / "sources.yaml"
+    config_path.write_text(
+        "sources:\n  - repo: owner/repo\n    ref: main\n    skills: []\n"
+    )
+
+    result = RUNNER.invoke(
+        app, ["ignore", "other/repo", "eng/extra", "--config", str(config_path)]
+    )
+
+    assert result.exit_code == 1
+    assert "other/repo" in result.output
+
+
 def test_add_onboards_skill_with_injected_fakes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

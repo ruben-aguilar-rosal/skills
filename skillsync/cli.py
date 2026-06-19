@@ -6,6 +6,8 @@ import typer
 
 from skillsync import __version__
 from skillsync.commands.add import run_add
+from skillsync.commands.discovery import DiscoveryNotice, surface_discoveries
+from skillsync.commands.ignore import IgnoreError, run_ignore
 from skillsync.commands.link import default_target_dir, run_link
 from skillsync.commands.regen import run_regen
 from skillsync.commands.reprofile import ReprofileOutcome, run_reprofile
@@ -261,16 +263,29 @@ def sync_cmd(
         run_reconcile=not skip_reconcile,
         run_validate=not skip_validate,
     )
+    git = make_git()
+    gh = make_gh()
     outcomes = run_sync(
-        config,
-        root,
-        git=make_git(),
-        llm=make_llm(),
-        gh=make_gh(),
-        only=skill,
-        options=options,
+        config, root, git=git, llm=make_llm(), gh=gh, only=skill, options=options
     )
     _print_outcomes(outcomes)
+
+    # Surface watched-folder discoveries as awareness issues. Skipped on a local
+    # (`--no-pr`) run — which deliberately opens no GitHub artifacts — and when
+    # `--skill` narrows the run to a single, already-tracked skill.
+    if not no_pr and skill is None:
+        notices = surface_discoveries(config, root, git=git, gh=gh)
+        _print_discoveries(notices)
+
+
+def _print_discoveries(notices: list[DiscoveryNotice]) -> None:
+    """Print the watched-folder discovery summary, one line per surfaced skill."""
+    if not notices:
+        return
+    typer.echo(f"\n{len(notices)} watched-folder discovery(ies):")
+    width = max(len(n.skill_path) for n in notices)
+    for notice in notices:
+        typer.echo(f"  {notice.kind.ljust(7)} {notice.skill_path.ljust(width)}  {notice.url}")
 
 
 @app.command(name="add")
@@ -311,6 +326,35 @@ def add_cmd(
     )
     suffix = f"  {outcome.url}" if outcome.url else ""
     typer.echo(f"{outcome.name}  {outcome.status}{suffix}")
+
+
+@app.command(name="ignore")
+def ignore_cmd(
+    repo: str = typer.Argument(..., help="Upstream repo, e.g. owner/repo."),
+    skill_path: str = typer.Argument(..., help="Discovered skill path to stop surfacing."),
+    config_path: Path = typer.Option(
+        Path("sources.yaml"), "--config", help="Path to sources.yaml."
+    ),
+) -> None:
+    """Stop a discovered upstream skill from being surfaced by future syncs.
+
+    Appends `skill_path` to the matching source's `ignore` list in sources.yaml.
+    This is the rejection counterpart to `skillsync add` for watched-folder
+    discoveries — a durable "no" that survives across sync runs.
+    """
+    try:
+        config = load_config(config_path)
+    except ConfigError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    try:
+        run_ignore(config, config_path, repo, skill_path)
+    except IgnoreError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    typer.echo(f"ignoring {skill_path} from {repo}")
 
 
 @app.command(name="regen")

@@ -175,13 +175,16 @@ class FakeGh:
 
     `open_pr` returns a synthetic, deterministic URL derived from the branch name.
     `calls` preserves invocation order so tests can assert the
-    branch -> commit -> open_pr sequence the PR layer must drive.
+    branch -> commit -> open_pr sequence the PR layer must drive. Opened issues are
+    remembered by title so `find_issue` can report a duplicate, mirroring the real
+    `GhCli`'s idempotent awareness-issue behaviour.
     """
 
     def __init__(self, branch: str = "main", pr_url: str | None = None) -> None:
         """Seed the reported current branch and an optional fixed PR URL."""
         self._branch = branch
         self._pr_url = pr_url
+        self._issues: dict[str, str] = {}
         self.calls: list[GhCall] = []
 
     def current_branch(self, root: Path) -> str:
@@ -215,4 +218,11 @@ class FakeGh:
     ) -> str:
         """Record the issue open and return a synthetic deterministic issue URL."""
         self.calls.append(GhCall("open_issue", (root, title, body, list(labels))))
-        return f"https://github.com/fake/skills/issues/{len(self.calls)}"
+        url = f"https://github.com/fake/skills/issues/{len(self.calls)}"
+        self._issues[title] = url
+        return url
+
+    def find_issue(self, root: Path, title: str) -> str | None:
+        """Record the lookup and return the URL of a previously-opened issue, if any."""
+        self.calls.append(GhCall("find_issue", (root, title)))
+        return self._issues.get(title)

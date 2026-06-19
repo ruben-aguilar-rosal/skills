@@ -5,6 +5,7 @@ value (branch name, commit message, PR body) is ever interpolated into a shell
 string. `open_pr` invokes `gh pr create` and returns the PR URL it prints.
 """
 
+import json
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -87,6 +88,29 @@ class GhCli:
         for label in labels:
             argv += ["--label", label]
         return self._run(root, *argv).strip()
+
+    def find_issue(self, root: Path, title: str) -> str | None:
+        """Return the URL of an existing OPEN issue with exactly `title`, else None.
+
+        Uses `gh issue list --search` to match the title, then filters to an exact
+        title match so a substring hit on another issue is never mistaken for it.
+        """
+        argv = [
+            "gh",
+            "issue",
+            "list",
+            "--state",
+            "open",
+            "--search",
+            f"in:title {title}",
+            "--json",
+            "title,url",
+        ]
+        payload = json.loads(self._run(root, *argv) or "[]")
+        for issue in payload:
+            if issue.get("title") == title:
+                return issue.get("url")
+        return None
 
     def _exec(self, cwd: Path, *args: str) -> "subprocess.CompletedProcess[str]":
         """Run a command with `shell=False` and a timeout; never raises on exit code."""

@@ -14,7 +14,7 @@ import yaml
 
 _log = logging.getLogger(__name__)
 
-_SOURCE_KEYS = {"repo", "ref", "skills"}
+_SOURCE_KEYS = {"repo", "ref", "skills", "watch", "ignore"}
 _SKILL_KEYS = {"path", "synced_sha", "hold"}
 
 
@@ -33,11 +33,21 @@ class SkillPin:
 
 @dataclass
 class Source:
-    """One upstream repo: what to fetch (`ref`) and its pinned skills."""
+    """One upstream repo: what to fetch (`ref`) and its pinned skills.
+
+    `watch` lists upstream folders to discover skills in: on a sync run, every
+    subfolder under a watched folder that contains a `SKILL.md` is checked against
+    the pins, and any not-yet-tracked one is surfaced for adoption. `ignore` is the
+    durable "no" list — discovered paths the author has rejected, so they stop being
+    surfaced. Both default to empty (a source with no `watch` behaves exactly as
+    before: only its explicit `skills` are synced).
+    """
 
     repo: str
     ref: str
     skills: list[SkillPin]
+    watch: list[str] = field(default_factory=list)
+    ignore: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -81,6 +91,8 @@ def save_config(config: Config, path: Path) -> None:
             {
                 "repo": source.repo,
                 "ref": source.ref,
+                "watch": list(source.watch),
+                "ignore": list(source.ignore),
                 "skills": [
                     {
                         "path": pin.path,
@@ -111,7 +123,13 @@ def _parse_source(entry: dict[str, Any], index: int, warnings: list[str]) -> Sou
         _parse_skill(skill, index, skill_index, warnings)
         for skill_index, skill in enumerate(entry.get("skills") or [])
     ]
-    return Source(repo=entry["repo"], ref=entry["ref"], skills=skills)
+    return Source(
+        repo=entry["repo"],
+        ref=entry["ref"],
+        skills=skills,
+        watch=list(entry.get("watch") or []),
+        ignore=list(entry.get("ignore") or []),
+    )
 
 
 def _parse_skill(

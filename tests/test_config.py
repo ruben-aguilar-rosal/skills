@@ -77,6 +77,61 @@ def test_save_then_load_round_trips(tmp_path: Path) -> None:
     assert load_config(config_path) == config
 
 
+def test_load_config_parses_watch_and_ignore(tmp_path: Path) -> None:
+    """`watch` and `ignore` folder lists are read onto the Source."""
+    config_path = tmp_path / "sources.yaml"
+    config_path.write_text(
+        "sources:\n"
+        "  - repo: owner/repo\n"
+        "    ref: main\n"
+        "    watch:\n"
+        "      - engineering/\n"
+        "    ignore:\n"
+        "      - engineering/experimental\n"
+        "    skills:\n"
+        "      - path: engineering/to-issues\n"
+        "        synced_sha: abc\n"
+    )
+
+    source = load_config(config_path).sources[0]
+
+    assert source.watch == ["engineering/"]
+    assert source.ignore == ["engineering/experimental"]
+
+
+def test_load_config_watch_and_ignore_default_empty(tmp_path: Path) -> None:
+    """A source without watch/ignore keys gets empty lists, not None."""
+    config_path = tmp_path / "sources.yaml"
+    config_path.write_text(
+        "sources:\n  - repo: owner/repo\n    ref: main\n    skills: []\n"
+    )
+
+    source = load_config(config_path).sources[0]
+
+    assert source.watch == []
+    assert source.ignore == []
+
+
+def test_save_then_load_round_trips_watch_and_ignore(tmp_path: Path) -> None:
+    """watch/ignore survive a save → load round-trip."""
+    config = Config(
+        sources=[
+            Source(
+                repo="owner/repo",
+                ref="main",
+                skills=[SkillPin(path="a/one", synced_sha="abc")],
+                watch=["a/"],
+                ignore=["a/skip"],
+            )
+        ]
+    )
+    config_path = tmp_path / "sources.yaml"
+
+    save_config(config, config_path)
+
+    assert load_config(config_path) == config
+
+
 def test_load_config_missing_file_raises_config_error(tmp_path: Path) -> None:
     """A missing `sources.yaml` raises a typed ConfigError with a helpful message."""
     missing = tmp_path / "nope.yaml"

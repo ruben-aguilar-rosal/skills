@@ -35,8 +35,9 @@ uv pip install -e .          # or: pip install -e .
 | Command | What it does |
 | ------- | ------------ |
 | `skillsync add <repo> <skill-path>` | Onboard a new upstream skill: draft `adaptation.md` from `profile.md`, full-generate the first `SKILL.md`, open a PR. |
-| `skillsync sync [--skill <name>]` | Full pipeline per changed skill: detect → gate → reconcile → patch → verify → validate → PR. |
+| `skillsync sync [--skill <name>]` | Full pipeline per changed skill: detect → gate → reconcile → patch → verify → validate → PR. Then surfaces watched-folder discoveries (see below). |
 | `skillsync sync --no-pr` | Local mode: adapt and write the artifacts to the working tree (and bump the pin) without opening a PR — inspect and play with them first. Pair with `--skip-advisory` / `--skip-reconcile` / `--skip-validate` to turn off optional stages. The security gate and adapt always run. |
+| `skillsync ignore <repo> <skill-path>` | Record a durable "no" for a discovered skill, so future syncs stop surfacing it. The rejection counterpart to `add`. |
 | `skillsync regen <name> [--force]` | Regenerate one skill's `SKILL.md` from its on-disk `upstream/` + `adaptation.md` (a full rebuild; never bumps `synced_sha`). |
 | `skillsync reprofile` | Re-bake the current `profile.md` into every skill's `adaptation.md`, one PR per skill. |
 | `skillsync link [--dry-run]` | Symlink each `skills/<name>/` into the native skills dir (`$SKILLSYNC_LINK_DIR`, else `~/.claude/skills`). Idempotent; skips non-symlink conflicts. |
@@ -45,6 +46,36 @@ uv pip install -e .          # or: pip install -e .
 | `skillsync detect` | Detect upstream changes per skill and print a name → kind table. |
 
 `skillsync --help` lists everything; `config-check` and `version` are utility commands.
+
+### Watching a folder of skills
+
+`sources.yaml` tracks one skill per pin — each with its own `synced_sha`, drift check, and
+PR. To follow an upstream *folder* of skills without listing each by hand, add a `watch`
+entry. On every `sync`, skillsync lists the skill folders under it and **surfaces** (never
+auto-onboards) anything not already tracked:
+
+```yaml
+sources:
+  - repo: mattpocock/skills
+    ref: main
+    watch:                        # folders to discover skills in
+      - engineering/
+    ignore:                       # discovered paths you've rejected (a durable "no")
+      - engineering/experimental
+    skills:                       # the tracked units — one pin per skill, as always
+      - path: engineering/to-issues
+        synced_sha: a1b2c3d
+```
+
+When a new skill appears under a watched folder, `sync` opens a single **awareness issue**
+(idempotent — no duplicates across runs) telling you to either:
+
+- **adopt** it — `skillsync add mattpocock/skills engineering/foo` (the normal onboarding:
+  draft + full-generate + PR), or
+- **reject** it — `skillsync ignore mattpocock/skills engineering/foo` (adds it to `ignore`).
+
+A tracked skill that disappears upstream (deleted/renamed) is surfaced the same way. Adoption
+is always explicit, so Opus quota is only ever spent on skills you've chosen.
 
 ### Cost framing
 
