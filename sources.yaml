@@ -1,7 +1,10 @@
 sources:
-  - repo: mattpocock/skills
-    ref: main
-    skills:
-      - path: engineering/to-issues
-        synced_sha: null
-        hold: false
+- repo: Aily-Labs/aily-devops-tools
+  ref: main
+  watch:
+  - .claude/skills/
+  ignore: []
+  skills:
+  - path: .claude/skills/aily-context
+    synced_sha: 3c8e6fa29c5b8977c9eb5ed921aedc8f86413c80
+    hold: false
