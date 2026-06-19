@@ -8,6 +8,10 @@ the deterministic stages and the CLI share one vocabulary for skill files.
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from skillsync.config import Config
 
 
 @dataclass(frozen=True)
@@ -23,10 +27,20 @@ class SkillLayout:
     generated_skill_md_path: Path
 
     @classmethod
-    def resolve(cls, repo_root: Path, subtree: str, name: str | None = None) -> "SkillLayout":
-        """Build a layout for `subtree`, naming it by its last segment unless overridden."""
+    def resolve(
+        cls,
+        repo_root: Path,
+        subtree: str,
+        name: str | None = None,
+        dest: str = "skills",
+    ) -> "SkillLayout":
+        """Build a layout for `subtree`, naming it by its last segment unless overridden.
+
+        `dest` is the parent dir (relative to `repo_root`) the skill folder lives
+        under; it defaults to `skills`, so the folder is `<dest>/<name>/`.
+        """
         skill_name = name or subtree.rstrip("/").rsplit("/", 1)[-1]
-        root = repo_root / "skills" / skill_name
+        root = repo_root / dest / skill_name
         generated_dir = root / ".generated"
         return cls(
             name=skill_name,
@@ -100,7 +114,12 @@ def read_skill(layout: SkillLayout) -> SkillFiles:
 
 
 def discover_skills(repo_root: Path) -> list[SkillLayout]:
-    """Return a layout for each skill folder under `skills/`, sorted by name."""
+    """Return a layout for each skill folder under `skills/`, sorted by name.
+
+    A filesystem scan of the default `skills/` dir only. With configurable `dest`
+    dirs a skill can live elsewhere, so config-driven callers should prefer
+    `layouts_from_config`; this remains for the default-layout case.
+    """
     skills_dir = repo_root / "skills"
     if not skills_dir.is_dir():
         return []
@@ -108,4 +127,20 @@ def discover_skills(repo_root: Path) -> list[SkillLayout]:
         SkillLayout.resolve(repo_root, child.name)
         for child in sorted(skills_dir.iterdir(), key=lambda p: p.name)
         if child.is_dir()
+    ]
+
+
+def layouts_from_config(config: "Config", repo_root: Path) -> list[SkillLayout]:
+    """Return a layout for every pinned skill, resolved under its effective `dest`.
+
+    The config is the source of truth for where each skill is stored, so this is
+    the dest-aware replacement for `discover_skills` in commands that already load
+    the config (e.g. `link`, `status`). Order follows config order.
+    """
+    from skillsync.config import skill_dest
+
+    return [
+        SkillLayout.resolve(repo_root, pin.path, dest=skill_dest(source, pin))
+        for source in config.sources
+        for pin in source.skills
     ]

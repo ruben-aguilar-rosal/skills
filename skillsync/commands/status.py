@@ -21,8 +21,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from skillsync.commands.link import _plan
-from skillsync.config import Config, SkillPin
-from skillsync.layout import SkillLayout, discover_skills, read_skill
+from skillsync.config import Config, SkillPin, skill_dest
+from skillsync.layout import SkillLayout, read_skill
 from skillsync.ports.git import GitError, GitPort
 from skillsync.stages.reconcile import detect_drift
 
@@ -56,53 +56,44 @@ def gather_status(
 ) -> list[SkillStatus]:
     """Build a status row for every skill folder under `root/skills/`.
 
-    `config` supplies the per-skill pin (ref + synced_sha) used for the
-    upstream-ahead check; a folder with no matching pin reports `synced_sha=None`
-    and `upstream_ahead=None`. `git=None` skips the (online) upstream-ahead probe
-    entirely. `target_dir` is the skills dir the link state is checked against.
+    `config` is the source of truth for which skills exist and where each lives
+    (its `dest`); a row is produced per pinned skill. `git=None` skips the (online)
+    upstream-ahead probe. `target_dir` is the skills dir the link state is checked
+    against.
     """
-    pins = _pins_by_name(config)
     return [
-        _status_one(layout, pins.get(layout.name), git, target_dir)
-        for layout in discover_skills(root)
+        _status_one(
+            _PinContext(source.repo, source.ref, pin, skill_dest(source, pin)),
+            root,
+            git,
+            target_dir,
+        )
+        for source in config.sources
+        for pin in source.skills
     ]
 
 
 @dataclass(frozen=True)
 class _PinContext:
-    """The `sources.yaml` context for one pinned skill: its repo, ref, and pin."""
+    """The `sources.yaml` context for one pinned skill: repo, ref, pin, and dest."""
 
     repo: str
     ref: str
     pin: SkillPin
-
-
-def _pins_by_name(config: Config) -> dict[str, _PinContext]:
-    """Map each pinned skill's folder name to its repo/ref/pin context.
-
-    The folder name is the pin path's last segment — the same naming
-    `SkillLayout.resolve` and `discover_skills` use — so it joins cleanly to the
-    on-disk folders.
-    """
-    by_name: dict[str, _PinContext] = {}
-    for source in config.sources:
-        for pin in source.skills:
-            name = pin.path.rstrip("/").rsplit("/", 1)[-1]
-            by_name[name] = _PinContext(source.repo, source.ref, pin)
-    return by_name
+    dest: str
 
 
 def _status_one(
-    layout: SkillLayout,
-    context: _PinContext | None,
+    context: _PinContext,
+    root: Path,
     git: GitPort | None,
     target_dir: Path,
 ) -> SkillStatus:
-    """Assemble the four status signals for a single skill folder."""
-    synced_sha = context.pin.synced_sha if context is not None else None
+    """Assemble the four status signals for a single pinned skill."""
+    layout = SkillLayout.resolve(root, context.pin.path, dest=context.dest)
     return SkillStatus(
         name=layout.name,
-        synced_sha=_short(synced_sha),
+        synced_sha=_short(context.pin.synced_sha),
         upstream_ahead=_upstream_ahead(context, git),
         drift=detect_drift(read_skill(layout)) is not None,
         linked=_is_linked(layout, target_dir),

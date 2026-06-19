@@ -28,7 +28,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-from skillsync.config import Config, SkillPin, Source, load_profile, save_config
+from skillsync.config import (
+    Config,
+    SkillPin,
+    Source,
+    load_profile,
+    save_config,
+    skill_dest,
+)
 from skillsync.layout import SkillLayout, mirror_files, write_text
 from skillsync.pr import build_pr, publish_pr
 from skillsync.ports.gh import GhPort
@@ -37,15 +44,26 @@ from skillsync.ports.llm import LLMError, LLMPort
 from skillsync.stages.adapt import AdaptResult, adapt
 from skillsync.stages.detect import ChangeSet
 from skillsync.stages.gate import DEFAULT_MAX_FILE_BYTES, GateResult, run_gate
-from skillsync.stages.llm_scan import advisory_scan
+from skillsync.stages.llm_scan import AdvisoryVerdict, advisory_scan
 from skillsync.stages.validate import validate_skill
 
 # Default model for every agentic step (PLAN.md: Opus for all of them).
 _DEFAULT_MODEL = "opus"
 
-# Label applied to every onboarding PR so the PR list distinguishes a first
+# Label applied to an adapted onboarding PR so the PR list distinguishes a first
 # full-generation from an incremental sync.
 _ONBOARDING_LABEL = "onboarding"
+
+# Label applied to a vendored (verbatim, no-adaptation) onboarding PR.
+_VENDORED_LABEL = "vendored"
+
+# Placeholder advisory verdict for a vendored onboarding: no LLM ran, so the PR
+# body is honest that the upstream was committed verbatim without an advisory scan.
+_VENDORED_ADVISORY = AdvisoryVerdict(
+    risk="low",
+    rationale="vendored verbatim (no --adapt); no advisory scan run",
+    findings=[],
+)
 
 # JSON schema the draft step's output must satisfy: a single `adaptation_md`
 # string. `additionalProperties: False` stops the model smuggling extra fields.
@@ -112,21 +130,31 @@ def run_add(
     llm: LLMPort,
     gh: GhPort,
     ref: str = "main",
+    adapt: bool = False,
+    dest: str | None = None,
     model: str = _DEFAULT_MODEL,
 ) -> AddOutcome:
     """Onboard the upstream skill at `repo`/`skill_path`, returning its outcome.
 
     Appends an unsynced pin to `config` (creating a `Source` for `repo` if needed)
-    and persists it, mirrors upstream, runs the deterministic gate, then — only if
-    the gate passes — drafts a self-contained `adaptation.md` from `profile.md` plus
-    the upstream SKILL.md, full-generates the first `SKILL.md`, validates it, and
-    opens an `onboarding`-labelled PR. The pin's `synced_sha` is set to the upstream
-    head only when the PR opens; a gate or validation failure opens an issue instead
-    and leaves the pin unsynced.
+    and persists it, mirrors upstream, and runs the deterministic security gate.
+    Then, on a gate pass:
+
+    - **vendor** (default, `adapt=False`): the upstream `SKILL.md` is committed
+      verbatim — no LLM, no `adaptation.md`, no `.generated` snapshot. Adaptation is
+      opt-in: add an `adaptation.md` and run `regen`/`sync` later to adapt it.
+    - **adapt** (`adapt=True`): draft a self-contained `adaptation.md` from
+      `profile.md` plus the upstream SKILL.md, full-generate the first `SKILL.md`,
+      and write the adaptation + snapshot.
+
+    Either path validates the result and opens a PR (`vendored` or `onboarding`
+    labelled); the pin's `synced_sha` is set to the upstream head only when the PR
+    opens. A gate or validation failure opens an issue and leaves the pin unsynced.
+    `dest` overrides where the skill folder is stored (default `skills/`).
     """
-    pin = _register_pin(config, root, repo, skill_path, ref)
+    pin = _register_pin(config, root, repo, skill_path, ref, dest)
     name = skill_path.rstrip("/").rsplit("/", 1)[-1]
-    layout = SkillLayout.resolve(root, skill_path)
+    layout = SkillLayout.resolve(root, skill_path, dest=skill_dest(_source(config, repo), pin))
 
     # Read the new upstream subtree — the gate's scan surface and the mirror source.
     repo_path = git.mirror(repo, ref)
@@ -148,6 +176,69 @@ def run_add(
     if not gate.passed:
         return _quarantine(changeset, gate, gh, root)
 
+    handler = _onboard_adapted if adapt else _onboard_vendored
+    return handler(
+        config, root, pin, layout, changeset, new_files, gate, gh=gh, llm=llm, model=model
+    )
+
+
+def _onboard_vendored(
+    config: Config,
+    root: Path,
+    pin: SkillPin,
+    layout: SkillLayout,
+    changeset: ChangeSet,
+    new_files: dict[str, str],
+    gate: GateResult,
+    *,
+    gh: GhPort,
+    llm: LLMPort,
+    model: str,
+) -> AddOutcome:
+    """Vendor the upstream skill verbatim: no LLM, no adaptation.md, gate+validate+PR."""
+    skill_md = _find_skill_md(new_files)
+    if skill_md is None:
+        return _invalid(changeset, ["upstream subtree has no SKILL.md"], gh, root)
+
+    validation = validate_skill(layout, skill_md, DEFAULT_MAX_FILE_BYTES)
+    if not validation.passed:
+        return _invalid(changeset, validation.errors, gh, root)
+
+    # Mirror the whole subtree and commit the upstream SKILL.md verbatim. No
+    # adaptation.md and no .generated snapshot — adaptation stays opt-in.
+    mirror_files(new_files, layout.upstream_dir)
+    write_text(layout.skill_md_path, skill_md)
+    pin.synced_sha = changeset.to_sha
+    save_config(config, root / "sources.yaml")
+
+    vendored = AdaptResult(skill_md_text=skill_md, snapshot_text=skill_md, flags=[])
+    skill_pr = build_pr(
+        changeset, gate, _VENDORED_ADVISORY, vendored, extra_labels=[_VENDORED_LABEL]
+    )
+    url = publish_pr(skill_pr, gh, root)
+    return AddOutcome(
+        name=changeset.name,
+        skill_path=changeset.skill_path,
+        status="pr",
+        url=url,
+        detail=skill_pr.title,
+    )
+
+
+def _onboard_adapted(
+    config: Config,
+    root: Path,
+    pin: SkillPin,
+    layout: SkillLayout,
+    changeset: ChangeSet,
+    new_files: dict[str, str],
+    gate: GateResult,
+    *,
+    gh: GhPort,
+    llm: LLMPort,
+    model: str,
+) -> AddOutcome:
+    """Draft adaptation.md, full-generate, validate, and open an `onboarding` PR."""
     # 2. Advisory LLM scan (defense-in-depth annotation, never a gate).
     advisory = advisory_scan(changeset.diff, llm, model)
 
@@ -176,8 +267,8 @@ def run_add(
     )
     url = publish_pr(skill_pr, gh, root)
     return AddOutcome(
-        name=name,
-        skill_path=skill_path,
+        name=changeset.name,
+        skill_path=changeset.skill_path,
         status="pr",
         url=url,
         detail=skill_pr.title,
@@ -186,20 +277,26 @@ def run_add(
 
 
 def _register_pin(
-    config: Config, root: Path, repo: str, skill_path: str, ref: str
+    config: Config, root: Path, repo: str, skill_path: str, ref: str, dest: str | None
 ) -> SkillPin:
     """Append an unsynced pin under the matching/new Source and persist the config.
 
-    Returns the appended pin so the caller can bump its `synced_sha` on success.
+    `dest`, when given, is recorded on the pin so the skill is stored under that
+    parent dir. Returns the appended pin so the caller can bump its `synced_sha`.
     """
     source = next((s for s in config.sources if s.repo == repo), None)
     if source is None:
         source = Source(repo=repo, ref=ref, skills=[])
         config.sources.append(source)
-    pin = SkillPin(path=skill_path, synced_sha=None, hold=False)
+    pin = SkillPin(path=skill_path, synced_sha=None, hold=False, dest=dest)
     source.skills.append(pin)
     save_config(config, root / "sources.yaml")
     return pin
+
+
+def _source(config: Config, repo: str) -> Source:
+    """Return the (already-registered) Source for `repo`."""
+    return next(s for s in config.sources if s.repo == repo)
 
 
 def _draft_adaptation(

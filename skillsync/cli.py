@@ -159,6 +159,9 @@ def _print_status(rows: list[SkillStatus]) -> None:
 
 @app.command(name="link")
 def link_cmd(
+    config_path: Path = typer.Option(
+        Path("sources.yaml"), "--config", help="Path to sources.yaml."
+    ),
     root: Path = typer.Option(
         Path("."), help="Repo root containing the skills/ directory."
     ),
@@ -166,13 +169,18 @@ def link_cmd(
         False, "--dry-run", help="Print planned actions without changing anything."
     ),
 ) -> None:
-    """Symlink each skill folder under `skills/` into the native skills dir.
+    """Symlink each configured skill folder into the native skills dir.
 
+    Skills are resolved under their configured `dest` dirs from sources.yaml (when
+    present); without a config it falls back to scanning the default `skills/` dir.
     The target dir is `$SKILLSYNC_LINK_DIR` if set, else `~/.claude/skills`. A real
     (non-symlink) path already occupying a slot is skipped with a warning and never
     clobbered. `--dry-run` prints the plan without touching the filesystem.
     """
-    actions = run_link(root, target_dir=default_target_dir(), dry_run=dry_run)
+    config = load_config(config_path) if config_path.exists() else None
+    actions = run_link(
+        root, target_dir=default_target_dir(), config=config, dry_run=dry_run
+    )
     if not actions:
         typer.echo("no skills found under skills/")
         return
@@ -376,13 +384,23 @@ def add_cmd(
     ),
     root: Path = typer.Option(Path("."), help="Repo root containing skills/."),
     ref: str = typer.Option("main", "--ref", help="Upstream ref to fetch."),
+    adapt: bool = typer.Option(
+        False,
+        "--adapt",
+        help="Draft an adaptation.md and full-generate (LLM); default just vendors.",
+    ),
+    dest: str | None = typer.Option(
+        None, "--dest", help="Parent dir to store the skill under (default skills/)."
+    ),
 ) -> None:
-    """Onboard a new upstream skill: draft adaptation.md, full-generate, and open a PR.
+    """Onboard a new upstream skill and open a PR.
 
-    Appends an unsynced pin to sources.yaml, mirrors upstream, runs the security
-    gate, then (on pass) drafts a self-contained adaptation.md from profile.md plus
-    the upstream SKILL.md, full-generates the first SKILL.md, validates it, and opens
-    an `onboarding`-labelled PR. Assembles the real git/LLM/gh ports (Opus, temp 0).
+    By default it **vendors** the upstream skill verbatim (no LLM): appends an
+    unsynced pin to sources.yaml, mirrors upstream, runs the security gate, copies
+    SKILL.md as-is, validates, and opens a `vendored` PR. Adaptation is opt-in —
+    pass `--adapt` to instead draft a self-contained adaptation.md from profile.md
+    and full-generate the first SKILL.md (an `onboarding` PR). `--dest` overrides
+    where the skill folder is stored, to group skills from different repos.
     """
     try:
         config = load_config(config_path)
@@ -402,6 +420,8 @@ def add_cmd(
         llm=make_llm(),
         gh=make_gh(),
         ref=ref,
+        adapt=adapt,
+        dest=dest,
     )
     suffix = f"  {outcome.url}" if outcome.url else ""
     typer.echo(f"{outcome.name}  {outcome.status}{suffix}")

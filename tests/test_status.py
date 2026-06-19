@@ -121,16 +121,26 @@ def test_status_upstream_ahead_none_on_git_error(tmp_path: Path) -> None:
     assert row.upstream_ahead is None
 
 
-def test_status_skill_absent_from_config_has_no_sha(tmp_path: Path) -> None:
-    """A skill folder present on disk but unpinned reports no sha and no ahead."""
-    write_text(tmp_path / "skills" / "orphan" / "SKILL.md", "x\n")
-    config = Config(sources=[])
+def test_status_reads_skill_under_custom_dest(tmp_path: Path) -> None:
+    """A skill pinned with a custom dest is read from that dest, not flat skills/."""
+    write_text(tmp_path / "skills" / "aily" / "demo" / "SKILL.md", "hand\n")
+    write_text(tmp_path / "skills" / "aily" / "demo" / ".generated" / "SKILL.md", "gen\n")
+    config = Config(
+        sources=[
+            Source(
+                repo="owner/repo",
+                ref="main",
+                dest="skills/aily",
+                skills=[SkillPin(path="x/demo", synced_sha="abc1234")],
+            )
+        ]
+    )
 
     [row] = gather_status(config, tmp_path, git=None, target_dir=tmp_path / "links")
 
-    assert row.name == "orphan"
-    assert row.synced_sha is None
-    assert row.upstream_ahead is None
+    assert row.name == "demo"
+    assert row.synced_sha == "abc1234"
+    assert row.drift is True  # read from skills/aily/demo, where the files are
 
 
 def test_status_empty_repo_yields_no_rows(tmp_path: Path) -> None:

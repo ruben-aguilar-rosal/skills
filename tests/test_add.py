@@ -90,11 +90,63 @@ def _pin(config: Config, path: str = "skills/demo") -> SkillPin:
     raise AssertionError(f"no pin for {path}")
 
 
-# --- happy path -----------------------------------------------------------------
+# --- vendor by default (no adaptation) ------------------------------------------
+
+
+def test_add_vendors_verbatim_without_llm(tmp_path: Path) -> None:
+    """Plain `add` vendors the upstream SKILL.md verbatim — no LLM, no adaptation.md."""
+    config = Config(sources=[])
+    git = _git()
+    llm = FakeLLM({})  # any LLM call would raise — none should happen
+    gh = FakeGh()
+
+    outcome = run_add(
+        config, tmp_path, "owner/repo", "skills/demo", git=git, llm=llm, gh=gh
+    )
+
+    assert outcome.status == "pr"
+    assert llm.calls == []  # vendoring never touches the LLM
+    layout = SkillLayout.resolve(tmp_path, "skills/demo")
+    # SKILL.md is the upstream copied verbatim; the mirror holds it too.
+    assert read_text(layout.skill_md_path) == _UPSTREAM
+    assert read_text(layout.upstream_dir / "SKILL.md") == _UPSTREAM
+    # No adaptation.md and no generated snapshot were written (adaptation is opt-in).
+    assert read_text(layout.adaptation_path) is None
+    assert read_text(layout.generated_skill_md_path) is None
+    # The pin still lands and bumps to HEAD on success.
+    assert _pin(config).synced_sha == "sha1"
+
+
+def test_add_vendor_pr_is_labelled_vendored(tmp_path: Path) -> None:
+    """A vendored onboarding PR carries a `vendored` label, not `onboarding`."""
+    config = Config(sources=[])
+    gh = FakeGh()
+
+    run_add(config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=FakeLLM({}), gh=gh)
+
+    labels = next(c for c in gh.calls if c.method == "open_pr").args[4]
+    assert "vendored" in labels
+
+
+def test_add_vendor_still_quarantines_on_gate_fail(tmp_path: Path) -> None:
+    """Vendoring still runs the security gate — a secret quarantines without a PR."""
+    config = Config(sources=[])
+    git = _git(_UPSTREAM + "\nAKIAIOSFODNN7EXAMPLE\n")
+    gh = FakeGh()
+
+    outcome = run_add(
+        config, tmp_path, "owner/repo", "skills/demo", git=git, llm=FakeLLM({}), gh=gh
+    )
+
+    assert outcome.status == "quarantined"
+    assert not any(c.method == "open_pr" for c in gh.calls)
+
+
+# --- happy path (--adapt) -------------------------------------------------------
 
 
 def test_add_onboards_and_opens_pr(tmp_path: Path) -> None:
-    """A clean onboarding drafts adaptation.md, full-generates, validates, opens a PR."""
+    """`add --adapt` drafts adaptation.md, full-generates, validates, opens a PR."""
     config = Config(sources=[])
     _write_profile(tmp_path)
     git = _git()
@@ -104,7 +156,7 @@ def test_add_onboards_and_opens_pr(tmp_path: Path) -> None:
     gh = FakeGh()
 
     outcome = run_add(
-        config, tmp_path, "owner/repo", "skills/demo", git=git, llm=llm, gh=gh
+        config, tmp_path, "owner/repo", "skills/demo", git=git, llm=llm, gh=gh, adapt=True
     )
 
     assert isinstance(outcome, AddOutcome)
@@ -121,7 +173,9 @@ def test_add_appends_pin_and_bumps_sha_on_success(tmp_path: Path) -> None:
         {_ADVISORY_KEY: _advisory(), _DRAFT_KEY: _draft(), _FULL_KEY: _full(_ADAPTED_VALID)}
     )
 
-    run_add(config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=FakeGh())
+    run_add(
+        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=FakeGh(), adapt=True
+    )
 
     # The in-memory config gained the pin, bumped to the upstream HEAD.
     pin = _pin(config)
@@ -140,7 +194,9 @@ def test_add_drafts_adaptation_from_profile_and_upstream(tmp_path: Path) -> None
         {_ADVISORY_KEY: _advisory(), _DRAFT_KEY: _draft(), _FULL_KEY: _full(_ADAPTED_VALID)}
     )
 
-    run_add(config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=FakeGh())
+    run_add(
+        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=FakeGh(), adapt=True
+    )
 
     draft_call = next(c for c in llm.calls if _DRAFT_KEY in c.prompt)
     # profile.md content is baked into the draft prompt verbatim...
@@ -160,7 +216,9 @@ def test_add_full_generates_validates_and_writes_artifacts(tmp_path: Path) -> No
         {_ADVISORY_KEY: _advisory(), _DRAFT_KEY: _draft(), _FULL_KEY: _full(_ADAPTED_VALID)}
     )
 
-    run_add(config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=FakeGh())
+    run_add(
+        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=FakeGh(), adapt=True
+    )
 
     # Full-mode (not patch) generation was used.
     assert any(_FULL_KEY in c.prompt for c in llm.calls)
@@ -180,7 +238,9 @@ def test_add_pr_carries_onboarding_label(tmp_path: Path) -> None:
     )
     gh = FakeGh()
 
-    run_add(config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=gh)
+    run_add(
+        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=gh, adapt=True
+    )
 
     open_pr = next(c for c in gh.calls if c.method == "open_pr")
     labels = open_pr.args[4]
@@ -197,7 +257,9 @@ def test_add_creates_new_source_when_repo_absent(tmp_path: Path) -> None:
         {_ADVISORY_KEY: _advisory(), _DRAFT_KEY: _draft(), _FULL_KEY: _full(_ADAPTED_VALID)}
     )
 
-    run_add(config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=FakeGh())
+    run_add(
+        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=FakeGh(), adapt=True
+    )
 
     repos = {source.repo for source in config.sources}
     assert repos == {"other/repo", "owner/repo"}
@@ -245,7 +307,7 @@ def test_add_validate_fail_emits_issue_and_no_pr(tmp_path: Path) -> None:
     gh = FakeGh()
 
     outcome = run_add(
-        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=gh
+        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=gh, adapt=True
     )
 
     assert outcome.status == "invalid"

@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-from skillsync.config import Config, SkillPin, save_config
+from skillsync.config import Config, SkillPin, save_config, skill_dest
 from skillsync.layout import (
     SkillLayout,
     mirror_files,
@@ -126,7 +126,7 @@ def run_sync(
     for changeset in detect(config, git, root):
         if only is not None and changeset.name != only:
             continue
-        source_repo, source_ref, pin = pins[changeset.skill_path]
+        source_repo, source_ref, pin, dest = pins[changeset.skill_path]
         outcomes.append(
             _sync_one(
                 config,
@@ -135,6 +135,7 @@ def run_sync(
                 source_repo,
                 source_ref,
                 pin,
+                dest,
                 git=git,
                 llm=llm,
                 gh=gh,
@@ -145,12 +146,12 @@ def run_sync(
     return outcomes
 
 
-def _pins_by_path(config: Config) -> dict[str, tuple[str, str, SkillPin]]:
-    """Index every pin by its subtree path → (repo, ref, pin) for detect matchback."""
-    index: dict[str, tuple[str, str, SkillPin]] = {}
+def _pins_by_path(config: Config) -> dict[str, tuple[str, str, SkillPin, str]]:
+    """Index every pin by subtree path → (repo, ref, pin, dest) for detect matchback."""
+    index: dict[str, tuple[str, str, SkillPin, str]] = {}
     for source in config.sources:
         for pin in source.skills:
-            index[pin.path] = (source.repo, source.ref, pin)
+            index[pin.path] = (source.repo, source.ref, pin, skill_dest(source, pin))
     return index
 
 
@@ -161,6 +162,7 @@ def _sync_one(
     repo: str,
     ref: str,
     pin: SkillPin,
+    dest: str,
     *,
     git: GitPort,
     llm: LLMPort,
@@ -177,7 +179,18 @@ def _sync_one(
             detail="no upstream change",
         )
 
-    layout = SkillLayout.resolve(root, changeset.skill_path)
+    layout = SkillLayout.resolve(root, changeset.skill_path, dest=dest)
+
+    # Adaptation is opt-in: a skill is adapted only when it has an adaptation.md on
+    # disk. Without one, leave it entirely untouched (no mirror, no LLM, no PR, sha
+    # frozen) until the author opts in by adding adaptation rules.
+    if not layout.adaptation_path.exists():
+        return SyncOutcome(
+            name=changeset.name,
+            skill_path=changeset.skill_path,
+            status="skipped",
+            detail="no adaptation.md (adaptation is opt-in); skill left untouched",
+        )
 
     # Read the new upstream subtree — the gate's scan surface and the mirror source.
     repo_path = git.mirror(repo, ref)

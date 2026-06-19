@@ -16,13 +16,18 @@ See [`PLAN.md`](./PLAN.md) for the full design and the hardening rationale.
 ```
 sources.yaml          # allowlist of upstream repos + skill paths + pinned SHAs
 profile.md            # author-time context (stack/tone), baked into each adaptation.md
-skills/<name>/        # one folder per synced+adapted skill
+skills/<name>/        # one folder per skill (the dest dir is configurable, see below)
   upstream/           # pristine mirror of the whole upstream subtree (never hand-edited)
-  adaptation.md       # self-contained adaptation rules
-  SKILL.md            # build artifact (patch-generated, committed for diff review)
-  .generated/         # snapshot of last agent output (drift detection)
+  adaptation.md       # self-contained adaptation rules — PRESENT only for adapted skills
+  SKILL.md            # the committed skill (vendored verbatim, or a patch-generated artifact)
+  .generated/         # snapshot of last agent output (drift detection; adapted skills only)
 skillsync/            # the Python CLI (see Architecture below)
 ```
+
+**Adaptation is opt-in.** A skill is adapted by the LLM only when it has an `adaptation.md`.
+Without one it is *vendored* — the upstream `SKILL.md` is mirrored verbatim. `sync` skips a
+vendored skill entirely (it's frozen at its pinned sha) until you add an `adaptation.md` and
+regen. This keeps quota spend to skills you've explicitly chosen to adapt.
 
 ## CLI
 
@@ -34,7 +39,7 @@ uv pip install -e .          # or: pip install -e .
 
 | Command | What it does |
 | ------- | ------------ |
-| `skillsync add <repo> <skill-path>` | Onboard a new upstream skill: draft `adaptation.md` from `profile.md`, full-generate the first `SKILL.md`, open a PR. |
+| `skillsync add <repo> <skill-path> [--dest <dir>]` | Onboard a new upstream skill. Default **vendors** it verbatim (no LLM); `--adapt` instead drafts `adaptation.md` from `profile.md` and full-generates `SKILL.md`. `--dest` sets where the skill folder is stored. |
 | `skillsync sync [--skill <name>]` | Full pipeline per changed skill: detect → gate → reconcile → patch → verify → validate → PR. Then surfaces watched-folder discoveries (see below). |
 | `skillsync sync --no-pr` | Local mode: adapt and write the artifacts to the working tree (and bump the pin) without opening a PR — inspect and play with them first. Pair with `--skip-advisory` / `--skip-reconcile` / `--skip-validate` to turn off optional stages. The security gate and adapt always run. |
 | `skillsync discover [--open-issues]` | Preview new/removed skills in watched folders. Read-only by default (prints findings, opens nothing); `--open-issues` files the awareness issues like `sync` does. |
@@ -80,6 +85,28 @@ is always explicit, so Opus quota is only ever spent on skills you've chosen.
 
 To preview discoveries without filing anything, run `skillsync discover` — it prints the new
 and removed skills and opens nothing (add `--open-issues` to file them on demand).
+
+### Where skills are stored (`dest`)
+
+By default a skill folder lands in `skills/<name>/`. Set `dest` to store a source's skills
+elsewhere, with a per-skill `dest` override to group skills from different repos together. The
+skill's own name is always appended to the `dest`:
+
+```yaml
+sources:
+  - repo: Aily-Labs/aily-devops-tools
+    ref: main
+    dest: skills/aily                 # this source's skills → skills/aily/<name>/
+    skills:
+      - path: .claude/skills/aily-context
+        synced_sha: a1b2c3d            # → skills/aily/aily-context/
+      - path: .claude/skills/some-tool
+        synced_sha: e4f5g6h
+        dest: skills/tools             # per-skill override → skills/tools/some-tool/
+```
+
+`skillsync add <repo> <path> --dest skills/aily` records the `dest` on the new pin for you.
+`status` and `link` read the configured `dest`, so skills are found wherever they live.
 
 ### Cost framing
 

@@ -21,9 +21,12 @@ resolves to exactly one of four planned actions, returned for the caller to prin
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
-from skillsync.layout import discover_skills
+from skillsync.layout import discover_skills, layouts_from_config
+
+if TYPE_CHECKING:
+    from skillsync.config import Config
 
 # Env var that overrides the default target dir, so the real home is never touched
 # under test. The CLI reads it via `default_target_dir`.
@@ -59,16 +62,19 @@ def run_link(
     root: Path,
     *,
     target_dir: Path,
+    config: "Config | None" = None,
     dry_run: bool = False,
 ) -> list[LinkAction]:
-    """Symlink each skill folder under `root/skills/` into `target_dir`.
+    """Symlink each configured skill folder into `target_dir`.
 
-    Returns one `LinkAction` per skill describing what was (or, with `dry_run`, would
-    be) done. A non-symlink path already occupying a slot is reported as `conflict`
-    and left untouched. With `dry_run=True` no filesystem changes are made — not even
-    creating `target_dir`.
+    When `config` is given, skills are resolved under their effective `dest` dirs
+    (the dest-aware, config-driven enumeration); otherwise it falls back to scanning
+    the default `skills/` dir. Returns one `LinkAction` per skill describing what was
+    (or, with `dry_run`, would be) done. A non-symlink path already occupying a slot
+    is reported as `conflict` and left untouched. With `dry_run=True` no filesystem
+    changes are made — not even creating `target_dir`.
     """
-    layouts = discover_skills(root)
+    layouts = layouts_from_config(config, root) if config is not None else discover_skills(root)
     if not layouts:
         return []
 

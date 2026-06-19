@@ -14,8 +14,12 @@ import yaml
 
 _log = logging.getLogger(__name__)
 
-_SOURCE_KEYS = {"repo", "ref", "skills", "watch", "ignore"}
-_SKILL_KEYS = {"path", "synced_sha", "hold"}
+_SOURCE_KEYS = {"repo", "ref", "skills", "watch", "ignore", "dest"}
+_SKILL_KEYS = {"path", "synced_sha", "hold", "dest"}
+
+# Default parent dir for a skill folder when neither the pin nor its source sets a
+# `dest`. Skills land in `<dest>/<skill-name>/`.
+DEFAULT_DEST = "skills"
 
 
 class ConfigError(Exception):
@@ -24,11 +28,17 @@ class ConfigError(Exception):
 
 @dataclass
 class SkillPin:
-    """One allowlisted skill: its subtree path and last-synced upstream SHA."""
+    """One allowlisted skill: its subtree path and last-synced upstream SHA.
+
+    `dest` overrides where this skill's folder is stored locally (the parent dir
+    its name is appended to); `None` falls back to the source's `dest`, then the
+    global default. Use it to group specific skills from different repos together.
+    """
 
     path: str
     synced_sha: str | None
     hold: bool = False
+    dest: str | None = None
 
 
 @dataclass
@@ -41,6 +51,10 @@ class Source:
     durable "no" list — discovered paths the author has rejected, so they stop being
     surfaced. Both default to empty (a source with no `watch` behaves exactly as
     before: only its explicit `skills` are synced).
+
+    `dest` is the default parent dir for this source's skill folders (each skill's
+    name is appended); an individual pin's `dest` overrides it, and `None` falls
+    back to the global default.
     """
 
     repo: str
@@ -48,6 +62,7 @@ class Source:
     skills: list[SkillPin]
     watch: list[str] = field(default_factory=list)
     ignore: list[str] = field(default_factory=list)
+    dest: str | None = None
 
 
 @dataclass
@@ -56,6 +71,15 @@ class Config:
 
     sources: list[Source]
     warnings: list[str] = field(default_factory=list, compare=False)
+
+
+def skill_dest(source: Source, pin: SkillPin) -> str:
+    """Resolve the parent dir a skill's folder is stored under.
+
+    Precedence: the pin's own `dest`, then its source's `dest`, then the global
+    `DEFAULT_DEST`. The skill's folder name is appended to this by the layout.
+    """
+    return pin.dest or source.dest or DEFAULT_DEST
 
 
 def load_config(path: Path) -> Config:
@@ -86,26 +110,34 @@ def load_config(path: Path) -> Config:
 
 def save_config(config: Config, path: Path) -> None:
     """Serialize a Config to `sources.yaml` with stable key order."""
-    payload = {
-        "sources": [
-            {
-                "repo": source.repo,
-                "ref": source.ref,
-                "watch": list(source.watch),
-                "ignore": list(source.ignore),
-                "skills": [
-                    {
-                        "path": pin.path,
-                        "synced_sha": pin.synced_sha,
-                        "hold": pin.hold,
-                    }
-                    for pin in source.skills
-                ],
-            }
-            for source in config.sources
-        ]
-    }
+    payload = {"sources": [_dump_source(source) for source in config.sources]}
     path.write_text(yaml.safe_dump(payload, sort_keys=False))
+
+
+def _dump_source(source: Source) -> dict[str, Any]:
+    """Serialize one Source, emitting `dest` only when it is set."""
+    out: dict[str, Any] = {
+        "repo": source.repo,
+        "ref": source.ref,
+        "watch": list(source.watch),
+        "ignore": list(source.ignore),
+    }
+    if source.dest is not None:
+        out["dest"] = source.dest
+    out["skills"] = [_dump_skill(pin) for pin in source.skills]
+    return out
+
+
+def _dump_skill(pin: SkillPin) -> dict[str, Any]:
+    """Serialize one SkillPin, emitting `dest` only when it is set."""
+    out: dict[str, Any] = {
+        "path": pin.path,
+        "synced_sha": pin.synced_sha,
+        "hold": pin.hold,
+    }
+    if pin.dest is not None:
+        out["dest"] = pin.dest
+    return out
 
 
 def load_profile(path: Path) -> str:
@@ -129,6 +161,7 @@ def _parse_source(entry: dict[str, Any], index: int, warnings: list[str]) -> Sou
         skills=skills,
         watch=list(entry.get("watch") or []),
         ignore=list(entry.get("ignore") or []),
+        dest=entry.get("dest"),
     )
 
 
@@ -145,4 +178,5 @@ def _parse_skill(
         path=entry["path"],
         synced_sha=entry.get("synced_sha"),
         hold=entry.get("hold", False),
+        dest=entry.get("dest"),
     )

@@ -72,7 +72,9 @@ def test_status_reports_sha_drift_and_link_state(tmp_path: Path) -> None:
         "    ref: main\n"
         "    skills:\n"
         "      - path: skills/alpha\n"
-        "        synced_sha: abcdef1234\n",
+        "        synced_sha: abcdef1234\n"
+        "      - path: skills/beta\n"
+        "        synced_sha: beef5678\n",
     )
 
     result = RUNNER.invoke(
@@ -109,7 +111,10 @@ def test_link_symlinks_skills_into_target_dir(
     target = tmp_path / "claude_skills"
     monkeypatch.setenv("SKILLSYNC_LINK_DIR", str(target))
 
-    result = RUNNER.invoke(app, ["link", "--root", str(tmp_path)])
+    # No config at this path → link falls back to scanning the default skills/ dir.
+    result = RUNNER.invoke(
+        app, ["link", "--root", str(tmp_path), "--config", str(tmp_path / "none.yaml")]
+    )
 
     assert result.exit_code == 0
     assert "demo" in result.stdout
@@ -124,7 +129,10 @@ def test_link_dry_run_makes_no_changes(
     target = tmp_path / "claude_skills"
     monkeypatch.setenv("SKILLSYNC_LINK_DIR", str(target))
 
-    result = RUNNER.invoke(app, ["link", "--root", str(tmp_path), "--dry-run"])
+    result = RUNNER.invoke(
+        app,
+        ["link", "--root", str(tmp_path), "--config", str(tmp_path / "none.yaml"), "--dry-run"],
+    )
 
     assert result.exit_code == 0
     assert "would create" in result.stdout
@@ -199,6 +207,7 @@ def test_sync_prints_outcome_table_with_injected_fakes(
     git.add_commit("sha2", {"skills/demo/SKILL.md": upstream_new})
     git.set_ref("main", "sha2")
     write_text(tmp_path / "skills" / "demo" / "SKILL.md", upstream_old)
+    write_text(tmp_path / "skills" / "demo" / "adaptation.md", "Target TP.")
     llm = FakeLLM(
         {
             "security reviewer auditing": LLMResult(
@@ -245,6 +254,7 @@ def test_sync_no_pr_adapts_locally_without_opening_a_pr(
     git.add_commit("sha2", {"skills/demo/SKILL.md": upstream_new})
     git.set_ref("main", "sha2")
     write_text(tmp_path / "skills" / "demo" / "SKILL.md", upstream_old)
+    write_text(tmp_path / "skills" / "demo" / "adaptation.md", "Target TP.")
     llm = FakeLLM(
         {
             "security reviewer auditing": LLMResult(
@@ -453,10 +463,42 @@ def test_ignore_unknown_repo_exits_one(tmp_path: Path) -> None:
     assert "other/repo" in result.output
 
 
-def test_add_onboards_skill_with_injected_fakes(
+def test_add_vendors_by_default(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`skillsync add` onboards a new skill with injected fakes and prints the outcome."""
+    """`skillsync add` (no --adapt) vendors verbatim with no LLM and opens a PR."""
+    upstream = (
+        "---\nname: demo\ndescription: Notes to issues.\n---\n\n# demo\nMake an issue.\n"
+    )
+    git = FakeGit()
+    git.add_commit("sha1", {"skills/demo/SKILL.md": upstream})
+    git.set_ref("main", "sha1")
+    llm = FakeLLM({})  # vendoring must not call the LLM
+    monkeypatch.setattr(cli, "make_git", lambda: git)
+    monkeypatch.setattr(cli, "make_llm", lambda: llm)
+    monkeypatch.setattr(cli, "make_gh", lambda: FakeGh())
+
+    config_path = tmp_path / "sources.yaml"
+    config_path.write_text("sources: []\n")
+
+    result = RUNNER.invoke(
+        app,
+        ["add", "owner/repo", "skills/demo", "--config", str(config_path), "--root", str(tmp_path)],
+    )
+
+    assert result.exit_code == 0
+    assert "demo" in result.stdout
+    assert "pr" in result.stdout
+    assert llm.calls == []
+    # Vendored verbatim, no adaptation.md.
+    assert (tmp_path / "skills" / "demo" / "SKILL.md").read_text() == upstream
+    assert not (tmp_path / "skills" / "demo" / "adaptation.md").exists()
+
+
+def test_add_adapt_flag_drafts_and_generates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`skillsync add --adapt` drafts adaptation.md and full-generates via the LLM."""
     upstream = (
         "---\nname: demo\ndescription: Notes to issues.\n---\n\n# demo\nMake an issue.\n"
     )
@@ -490,6 +532,7 @@ def test_add_onboards_skill_with_injected_fakes(
             "add",
             "owner/repo",
             "skills/demo",
+            "--adapt",
             "--config",
             str(config_path),
             "--root",
@@ -500,6 +543,7 @@ def test_add_onboards_skill_with_injected_fakes(
     assert result.exit_code == 0
     assert "demo" in result.stdout
     assert "pr" in result.stdout
+    assert (tmp_path / "skills" / "demo" / "adaptation.md").exists()
 
 
 def test_regen_regenerates_skill_with_injected_fakes(

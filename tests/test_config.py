@@ -12,6 +12,7 @@ from skillsync.config import (
     load_config,
     load_profile,
     save_config,
+    skill_dest,
 )
 
 SAMPLE_YAML = """\
@@ -159,6 +160,63 @@ def test_load_config_collects_warning_for_unknown_keys(tmp_path: Path) -> None:
     assert config.sources[0].repo == "owner/repo"
     assert any("mystery" in warning for warning in config.warnings)
     assert any("bogus" in warning for warning in config.warnings)
+
+
+def test_load_config_parses_dest_on_source_and_skill(tmp_path: Path) -> None:
+    """`dest` is read onto the Source (default) and the SkillPin (override)."""
+    config_path = tmp_path / "sources.yaml"
+    config_path.write_text(
+        "sources:\n"
+        "  - repo: owner/repo\n"
+        "    ref: main\n"
+        "    dest: skills/aily\n"
+        "    skills:\n"
+        "      - path: a/one\n"
+        "        synced_sha: abc\n"
+        "      - path: a/two\n"
+        "        synced_sha: def\n"
+        "        dest: skills/aws\n"
+    )
+
+    source = load_config(config_path).sources[0]
+
+    assert source.dest == "skills/aily"
+    assert source.skills[0].dest is None
+    assert source.skills[1].dest == "skills/aws"
+
+
+def test_dest_defaults_none_and_round_trips(tmp_path: Path) -> None:
+    """`dest` defaults to None and survives a save → load round-trip when set."""
+    config = Config(
+        sources=[
+            Source(
+                repo="owner/repo",
+                ref="main",
+                skills=[
+                    SkillPin(path="a/one", synced_sha="abc"),
+                    SkillPin(path="a/two", synced_sha="def", dest="skills/aws"),
+                ],
+                dest="skills/aily",
+            )
+        ]
+    )
+    config_path = tmp_path / "sources.yaml"
+
+    save_config(config, config_path)
+
+    assert load_config(config_path) == config
+
+
+def test_skill_dest_resolves_precedence() -> None:
+    """`skill_dest` prefers the pin's dest, then the source's, then 'skills'."""
+    source = Source(repo="r", ref="main", skills=[], dest="skills/aily")
+    assert skill_dest(source, SkillPin(path="a/x", synced_sha=None)) == "skills/aily"
+    assert (
+        skill_dest(source, SkillPin(path="a/x", synced_sha=None, dest="skills/aws"))
+        == "skills/aws"
+    )
+    bare = Source(repo="r", ref="main", skills=[])
+    assert skill_dest(bare, SkillPin(path="a/x", synced_sha=None)) == "skills"
 
 
 def test_load_profile_reads_file(tmp_path: Path) -> None:

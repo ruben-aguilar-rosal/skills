@@ -2,10 +2,12 @@
 
 from pathlib import Path
 
+from skillsync.config import Config, SkillPin, Source
 from skillsync.layout import (
     SkillFiles,
     SkillLayout,
     discover_skills,
+    layouts_from_config,
     mirror_files,
     read_skill,
     read_text,
@@ -104,3 +106,33 @@ def test_discover_skills_lists_folders_sorted(tmp_path: Path) -> None:
 def test_discover_skills_empty_when_no_skills_dir(tmp_path: Path) -> None:
     """`discover_skills` returns an empty list when `skills/` is absent."""
     assert discover_skills(tmp_path) == []
+
+
+def test_layout_resolve_custom_dest(tmp_path: Path) -> None:
+    """An explicit `dest` places the skill folder under that parent dir."""
+    layout = SkillLayout.resolve(tmp_path, "a/to-issues", dest="skills/aily")
+
+    assert layout.root == tmp_path / "skills" / "aily" / "to-issues"
+    assert layout.skill_md_path == layout.root / "SKILL.md"
+
+
+def test_layouts_from_config_uses_dest_precedence(tmp_path: Path) -> None:
+    """`layouts_from_config` resolves each pin under its effective dest."""
+    config = Config(
+        sources=[
+            Source(
+                repo="owner/repo",
+                ref="main",
+                dest="skills/aily",
+                skills=[
+                    SkillPin(path="a/one", synced_sha="x"),
+                    SkillPin(path="a/two", synced_sha="y", dest="skills/aws"),
+                ],
+            )
+        ]
+    )
+
+    layouts = layouts_from_config(config, tmp_path)
+
+    assert layouts[0].root == tmp_path / "skills" / "aily" / "one"
+    assert layouts[1].root == tmp_path / "skills" / "aws" / "two"

@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-from skillsync.config import Config
+from skillsync.config import Config, skill_dest
 from skillsync.layout import SkillLayout, mirror_files, read_text, read_tree, write_text
 from skillsync.pr import build_pr, publish_pr
 from skillsync.ports.gh import GhPort
@@ -93,7 +93,7 @@ def run_regen(
     A validation failure opens an issue and writes nothing. `config` is unused (regen
     never touches the pins) but kept in the signature to match the other commands.
     """
-    layout = SkillLayout.resolve(root, name)
+    layout = SkillLayout.resolve(root, name, dest=_dest_for_name(config, name))
     adaptation_text = read_text(layout.adaptation_path) or ""
     upstream_files = read_tree(layout.upstream_dir)
 
@@ -168,6 +168,19 @@ def regenerate_to_pr(
     )
     url = publish_pr(skill_pr, gh, root)
     return "pr", url, skill_pr.title, list(adapt_result.flags)
+
+
+def _dest_for_name(config: Config, name: str) -> str:
+    """Resolve the dest dir for the skill whose folder name is `name`.
+
+    Matches the pin whose path's last segment equals `name`; falls back to the
+    default dest when no pin matches (e.g. a hand-placed skill folder).
+    """
+    for source in config.sources:
+        for pin in source.skills:
+            if pin.path.rstrip("/").rsplit("/", 1)[-1] == name:
+                return skill_dest(source, pin)
+    return "skills"
 
 
 def _regen_changeset(layout: SkillLayout, upstream_files: dict[str, str]) -> ChangeSet:

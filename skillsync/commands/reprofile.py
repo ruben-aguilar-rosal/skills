@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Literal
 
 from skillsync.commands.regen import regenerate_to_pr
-from skillsync.config import Config, load_profile
+from skillsync.config import Config, load_profile, skill_dest
 from skillsync.layout import SkillLayout, read_text, read_tree, write_text
 from skillsync.ports.gh import GhPort
 from skillsync.ports.llm import LLMError, LLMPort
@@ -100,20 +100,25 @@ def run_reprofile(
     """
     profile = load_profile(root / "profile.md")
     outcomes: list[ReprofileOutcome] = []
-    for skill_path in _tracked_paths(config):
+    for skill_path, dest in _tracked_paths(config):
         outcomes.append(
-            _reprofile_one(skill_path, root, profile, llm=llm, gh=gh, model=model)
+            _reprofile_one(skill_path, dest, root, profile, llm=llm, gh=gh, model=model)
         )
     return outcomes
 
 
-def _tracked_paths(config: Config) -> list[str]:
-    """Every pinned skill subtree path across all sources, in config order."""
-    return [pin.path for source in config.sources for pin in source.skills]
+def _tracked_paths(config: Config) -> list[tuple[str, str]]:
+    """Every pinned skill's `(subtree path, dest dir)` across all sources, in order."""
+    return [
+        (pin.path, skill_dest(source, pin))
+        for source in config.sources
+        for pin in source.skills
+    ]
 
 
 def _reprofile_one(
     skill_path: str,
+    dest: str,
     root: Path,
     profile: str,
     *,
@@ -122,7 +127,7 @@ def _reprofile_one(
     model: str,
 ) -> ReprofileOutcome:
     """Re-bake one skill's adaptation.md and regenerate it into a PR (or block it)."""
-    layout = SkillLayout.resolve(root, skill_path)
+    layout = SkillLayout.resolve(root, skill_path, dest=dest)
     current_adaptation = read_text(layout.adaptation_path) or ""
     rebaked = _rebake_adaptation(profile, current_adaptation, llm, model)
     upstream_files = read_tree(layout.upstream_dir)
