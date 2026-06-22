@@ -15,6 +15,8 @@ import jsonschema
 
 from skillsync.ports.git import GitError
 from skillsync.ports.llm import LLMError, LLMResult
+from skillsync.ports.scanner import ScanError
+from skillsync.stages.gate import Finding, GateResult
 
 _EMPTY_TREE = "<empty>"
 
@@ -226,3 +228,55 @@ class FakeGh:
         """Record the lookup and return the URL of a previously-opened issue, if any."""
         self.calls.append(GhCall("find_issue", (root, title)))
         return self._issues.get(title)
+
+
+# SkillSpector severity → skillsync `Finding` severity, mirroring `SkillSpectorCli`.
+_SCAN_SEVERITY_MAP = {"CRITICAL": "fail", "HIGH": "fail", "MEDIUM": "warn", "LOW": "info"}
+
+
+class FakeScanner:
+    """`ScannerPort` returning a scripted `GateResult` (or raising a scripted error).
+
+    Records the files present in the scanned directory at call time so tests can
+    assert the subtree was materialized. `from_issues` builds the result from
+    SkillSpector-shaped `issues[]`, mapping severities exactly as `SkillSpectorCli`
+    does, so a test can drive the same blocking logic without the real binary.
+    """
+
+    def __init__(
+        self, result: GateResult | None = None, *, error: ScanError | None = None
+    ) -> None:
+        """Seed the scripted scan `result`, or an `error` to raise on scan."""
+        self._result = result if result is not None else GateResult(passed=True)
+        self._error = error
+        self.scanned_files: dict[str, str] = {}
+
+    @classmethod
+    def from_issues(
+        cls, *, issues: list[dict], score: int = 0, severity: str = "LOW"
+    ) -> "FakeScanner":
+        """Build a scanner whose result maps SkillSpector-shaped `issues[]` to findings."""
+        findings = [
+            Finding(
+                severity=_SCAN_SEVERITY_MAP.get(
+                    str(issue.get("severity", "LOW")).upper(), "info"
+                ),
+                kind=str(issue.get("id") or "skillspector"),
+                detail=f"[{issue.get('severity')}] {issue.get('explanation', '')}",
+                file=str((issue.get("location") or {}).get("file") or "SKILL.md"),
+            )
+            for issue in issues
+        ]
+        passed = not any(f.severity == "fail" for f in findings)
+        return cls(GateResult(passed=passed, findings=findings))
+
+    def scan(self, skill_dir: Path) -> GateResult:
+        """Record the directory's files and return the scripted result (or raise)."""
+        self.scanned_files = {
+            path.relative_to(skill_dir).as_posix(): path.read_text()
+            for path in sorted(skill_dir.rglob("*"))
+            if path.is_file()
+        }
+        if self._error is not None:
+            raise self._error
+        return self._result

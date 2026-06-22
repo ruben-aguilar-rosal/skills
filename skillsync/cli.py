@@ -23,6 +23,8 @@ from skillsync.ports.git import GitPort
 from skillsync.ports.git_cli import GitCli
 from skillsync.ports.llm import LLMPort
 from skillsync.ports.llm_claude import ClaudeCli
+from skillsync.ports.scanner import ScannerPort
+from skillsync.ports.scanner_cli import SkillSpectorCli
 from skillsync.stages.detect import detect
 from skillsync.stages.discover import discover
 from skillsync.stages.gate import DEFAULT_MAX_FILE_BYTES
@@ -79,6 +81,11 @@ def make_llm() -> LLMPort:
 def make_gh() -> GhPort:
     """Construct the gh port the PR/issue output uses (real `git`/`gh` CLIs)."""
     return GhCli()
+
+
+def make_scanner() -> ScannerPort:
+    """Construct the security-scan port (NVIDIA SkillSpector, deterministic `--no-llm`)."""
+    return SkillSpectorCli()
 
 
 @app.callback()
@@ -308,7 +315,14 @@ def sync_cmd(
     git = make_git()
     gh = make_gh()
     outcomes = run_sync(
-        config, root, git=git, llm=make_llm(), gh=gh, only=skill, options=options
+        config,
+        root,
+        git=git,
+        llm=make_llm(),
+        gh=gh,
+        scanner=make_scanner(),
+        only=skill,
+        options=options,
     )
     _print_outcomes(outcomes)
 
@@ -425,6 +439,7 @@ def add_cmd(
         git=make_git(),
         llm=make_llm(),
         gh=make_gh(),
+        scanner=make_scanner(),
         ref=ref,
         adapt=adapt,
         dest=dest,

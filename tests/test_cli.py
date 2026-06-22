@@ -9,7 +9,15 @@ from skillsync import __version__, cli
 from skillsync.cli import app, resolve_claude_command
 from skillsync.layout import write_text
 from skillsync.ports.llm import LLMResult
-from skillsync.testing.fakes import FakeGh, FakeGit, FakeLLM
+from skillsync.stages.gate import GateResult
+from skillsync.testing.fakes import FakeGh, FakeGit, FakeLLM, FakeScanner
+
+
+def _patch_scanner(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Point `make_scanner` at a pass-through FakeScanner (no real SkillSpector)."""
+    monkeypatch.setattr(
+        cli, "make_scanner", lambda: FakeScanner(GateResult(passed=True, findings=[]))
+    )
 
 RUNNER = CliRunner()
 
@@ -198,6 +206,7 @@ def test_sync_prints_outcome_table_with_injected_fakes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """`skillsync sync` runs the pipeline with injected fakes and prints outcomes."""
+    _patch_scanner(monkeypatch)
     upstream_old = "---\nname: demo\ndescription: Old.\n---\n\nold\n"
     upstream_new = "---\nname: demo\ndescription: New.\n---\n\nnew\n"
     adapted = "---\nname: demo\ndescription: A demo.\n---\n\n# demo\nbody\n"
@@ -245,6 +254,7 @@ def test_sync_no_pr_adapts_locally_without_opening_a_pr(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """`skillsync sync --no-pr` writes adapted artifacts locally and opens no PR."""
+    _patch_scanner(monkeypatch)
     upstream_old = "---\nname: demo\ndescription: Old.\n---\n\nold\n"
     upstream_new = "---\nname: demo\ndescription: New.\n---\n\nnew\n"
     adapted = "---\nname: demo\ndescription: A demo.\n---\n\n# demo\nbody\n"
@@ -467,6 +477,7 @@ def test_add_vendors_by_default(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """`skillsync add` (no --adapt) vendors verbatim with no LLM and opens a PR."""
+    _patch_scanner(monkeypatch)
     upstream = (
         "---\nname: demo\ndescription: Notes to issues.\n---\n\n# demo\nMake an issue.\n"
     )
@@ -499,6 +510,7 @@ def test_add_no_pr_writes_locally(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """`skillsync add --no-pr` vendors to the working tree and opens no PR."""
+    _patch_scanner(monkeypatch)
     upstream = "---\nname: demo\ndescription: D.\n---\n\n# demo\nbody\n"
     git = FakeGit()
     git.add_commit("sha1", {"skills/demo/SKILL.md": upstream})
@@ -526,6 +538,7 @@ def test_add_adapt_flag_drafts_and_generates(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """`skillsync add --adapt` drafts adaptation.md and full-generates via the LLM."""
+    _patch_scanner(monkeypatch)
     upstream = (
         "---\nname: demo\ndescription: Notes to issues.\n---\n\n# demo\nMake an issue.\n"
     )

@@ -19,7 +19,29 @@ from skillsync.commands.add import AddOutcome, run_add
 from skillsync.config import Config, SkillPin, Source, load_config
 from skillsync.layout import SkillLayout, read_text
 from skillsync.ports.llm import LLMResult
-from skillsync.testing.fakes import FakeGh, FakeGit, FakeLLM
+from skillsync.stages.gate import GateResult
+from skillsync.testing.fakes import FakeGh, FakeGit, FakeLLM, FakeScanner
+
+
+def _clean() -> FakeScanner:
+    """A scanner that passes (no findings); the gate is exercised in its own tests."""
+    return FakeScanner(GateResult(passed=True, findings=[]))
+
+
+def _critical_scanner() -> FakeScanner:
+    """A scanner returning a CRITICAL finding (quarantines the onboarding)."""
+    return FakeScanner.from_issues(
+        score=60,
+        severity="CRITICAL",
+        issues=[
+            {
+                "id": "PI-001",
+                "severity": "CRITICAL",
+                "location": {"file": "SKILL.md"},
+                "explanation": "embedded prompt injection",
+            }
+        ],
+    )
 
 # --- Scripted LLM substring keys (unique to each stage's prompt template) -------
 _ADVISORY_KEY = "security reviewer auditing"
@@ -101,7 +123,7 @@ def test_add_vendors_verbatim_without_llm(tmp_path: Path) -> None:
     gh = FakeGh()
 
     outcome = run_add(
-        config, tmp_path, "owner/repo", "skills/demo", git=git, llm=llm, gh=gh
+        config, tmp_path, "owner/repo", "skills/demo", git=git, llm=llm, gh=gh, scanner=_clean()
     )
 
     assert outcome.status == "pr"
@@ -122,7 +144,7 @@ def test_add_vendor_pr_is_labelled_vendored(tmp_path: Path) -> None:
     config = Config(sources=[])
     gh = FakeGh()
 
-    run_add(config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=FakeLLM({}), gh=gh)
+    run_add(config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=FakeLLM({}), gh=gh, scanner=_clean())
 
     labels = next(c for c in gh.calls if c.method == "open_pr").args[4]
     assert "vendored" in labels
@@ -141,7 +163,7 @@ def test_add_vendor_copies_ship_along_scripts(tmp_path: Path) -> None:
     )
     git.set_ref("main", "sha1")
 
-    run_add(config, tmp_path, "owner/repo", "skills/demo", git=git, llm=FakeLLM({}), gh=FakeGh())
+    run_add(config, tmp_path, "owner/repo", "skills/demo", git=git, llm=FakeLLM({}), gh=FakeGh(), scanner=_clean())
 
     layout = SkillLayout.resolve(tmp_path, "skills/demo")
     # The script the skill ships sits in the skill folder root (so the link works)...
@@ -157,7 +179,7 @@ def test_add_no_pr_writes_locally_without_a_pr(tmp_path: Path) -> None:
     gh = FakeGh()
 
     outcome = run_add(
-        config, tmp_path, "owner/repo", "skills/demo", git=git, llm=FakeLLM({}), gh=gh,
+        config, tmp_path, "owner/repo", "skills/demo", git=git, llm=FakeLLM({}), gh=gh, scanner=_clean(),
         open_pr=False,
     )
 
@@ -181,7 +203,7 @@ def test_add_no_pr_adapt_writes_locally(tmp_path: Path) -> None:
     gh = FakeGh()
 
     outcome = run_add(
-        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=gh,
+        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=gh, scanner=_clean(),
         adapt=True, open_pr=False,
     )
 
@@ -193,13 +215,13 @@ def test_add_no_pr_adapt_writes_locally(tmp_path: Path) -> None:
 
 
 def test_add_vendor_still_quarantines_on_gate_fail(tmp_path: Path) -> None:
-    """Vendoring still runs the security gate — a secret quarantines without a PR."""
+    """Vendoring still runs the security gate — a CRITICAL finding quarantines, no PR."""
     config = Config(sources=[])
-    git = _git(_UPSTREAM + "\nAKIAIOSFODNN7EXAMPLE\n")
     gh = FakeGh()
 
     outcome = run_add(
-        config, tmp_path, "owner/repo", "skills/demo", git=git, llm=FakeLLM({}), gh=gh
+        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=FakeLLM({}), gh=gh,
+        scanner=_critical_scanner(),
     )
 
     assert outcome.status == "quarantined"
@@ -220,7 +242,7 @@ def test_add_onboards_and_opens_pr(tmp_path: Path) -> None:
     gh = FakeGh()
 
     outcome = run_add(
-        config, tmp_path, "owner/repo", "skills/demo", git=git, llm=llm, gh=gh, adapt=True
+        config, tmp_path, "owner/repo", "skills/demo", git=git, llm=llm, gh=gh, adapt=True, scanner=_clean()
     )
 
     assert isinstance(outcome, AddOutcome)
@@ -238,7 +260,7 @@ def test_add_appends_pin_and_bumps_sha_on_success(tmp_path: Path) -> None:
     )
 
     run_add(
-        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=FakeGh(), adapt=True
+        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=FakeGh(), adapt=True, scanner=_clean()
     )
 
     # The in-memory config gained the pin, bumped to the upstream HEAD.
@@ -259,7 +281,7 @@ def test_add_drafts_adaptation_from_profile_and_upstream(tmp_path: Path) -> None
     )
 
     run_add(
-        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=FakeGh(), adapt=True
+        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=FakeGh(), adapt=True, scanner=_clean()
     )
 
     draft_call = next(c for c in llm.calls if _DRAFT_KEY in c.prompt)
@@ -281,7 +303,7 @@ def test_add_full_generates_validates_and_writes_artifacts(tmp_path: Path) -> No
     )
 
     run_add(
-        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=FakeGh(), adapt=True
+        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=FakeGh(), adapt=True, scanner=_clean()
     )
 
     # Full-mode (not patch) generation was used.
@@ -303,7 +325,7 @@ def test_add_pr_carries_onboarding_label(tmp_path: Path) -> None:
     gh = FakeGh()
 
     run_add(
-        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=gh, adapt=True
+        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=gh, adapt=True, scanner=_clean()
     )
 
     open_pr = next(c for c in gh.calls if c.method == "open_pr")
@@ -322,7 +344,7 @@ def test_add_creates_new_source_when_repo_absent(tmp_path: Path) -> None:
     )
 
     run_add(
-        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=FakeGh(), adapt=True
+        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=FakeGh(), adapt=True, scanner=_clean()
     )
 
     repos = {source.repo for source in config.sources}
@@ -334,16 +356,15 @@ def test_add_creates_new_source_when_repo_absent(tmp_path: Path) -> None:
 
 
 def test_add_gate_fail_quarantines_before_drafting(tmp_path: Path) -> None:
-    """A secret in the upstream quarantines the skill before any LLM call is made."""
+    """A CRITICAL scanner finding quarantines the skill before any LLM call is made."""
     config = Config(sources=[])
     _write_profile(tmp_path)
-    poisoned = _UPSTREAM + "\nAKIAIOSFODNN7EXAMPLE\n"
-    git = _git(poisoned)
     llm = FakeLLM({})  # any LLM call would raise — none should happen
     gh = FakeGh()
 
     outcome = run_add(
-        config, tmp_path, "owner/repo", "skills/demo", git=git, llm=llm, gh=gh
+        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=gh,
+        scanner=_critical_scanner(),
     )
 
     assert outcome.status == "quarantined"
@@ -371,7 +392,7 @@ def test_add_validate_fail_emits_issue_and_no_pr(tmp_path: Path) -> None:
     gh = FakeGh()
 
     outcome = run_add(
-        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=gh, adapt=True
+        config, tmp_path, "owner/repo", "skills/demo", git=_git(), llm=llm, gh=gh, adapt=True, scanner=_clean()
     )
 
     assert outcome.status == "invalid"

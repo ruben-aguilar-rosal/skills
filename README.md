@@ -158,24 +158,24 @@ skillsync/
   layout.py         # SkillLayout path model + skill-folder read/write helpers
   pipeline.py       # `sync` orchestration: wires the full per-skill pipeline
   pr.py             # PR builder: branch + commit + PR-body assembly
-  commands/         # add, regen, reprofile, link, status (orchestrators over stages + ports)
-  stages/           # detect, gate, validate (deterministic); adapt, llm_scan, reconcile (agentic)
-  ports/            # GitPort/GhPort/LLMPort protocols + their real CLI adapters
-  testing/fakes.py  # in-memory FakeGit / FakeGh / FakeLLM backing the same port contracts
+  commands/         # add, regen, reprofile, link, status, ignore, discovery (orchestrators)
+  stages/           # detect, validate (deterministic); adapt, llm_scan, reconcile (agentic)
+  ports/            # Git/Gh/LLM/Scanner protocols + their real CLI adapters (+ fakes)
+  testing/fakes.py  # in-memory FakeGit / FakeGh / FakeLLM / FakeScanner backing the contracts
 ```
 
 Invariants:
 
-- The deterministic stages (`detect`, `gate`, `validate`) contain **zero** LLM calls and are
-  fully reproducible.
+- The deterministic stages (`detect`, `validate`) and the security gate (SkillSpector
+  `--no-llm`) contain **zero** skillsync LLM calls and are reproducible.
 - Stages return structured results (dataclasses); they never `sys.exit`.
 - Every side effect goes through a port, so the whole pipeline runs against fakes in tests —
-  no test touches the network or invokes real `claude`/`gh`.
+  no test touches the network or invokes real `claude` / `gh` / `skillspector`.
 
 ## Pipeline (per `sync` run)
 
 ```
-detect → security gate (deterministic) → reconcile drift → adapt (patch)
+detect → security gate (SkillSpector) → reconcile drift → adapt (patch)
        → verify preservation → validate (deterministic) → PR
 ```
 
@@ -183,6 +183,24 @@ The committed `SKILL.md` is a build artifact but is also hand-editable: a hand-e
 as drift (`SKILL.md` vs `.generated/SKILL.md`) and is folded back into `adaptation.md` so it
 survives future generations. A failed security gate or validation opens an issue instead of a
 PR. See [`PLAN.md`](./PLAN.md) for the full step-by-step.
+
+### Security gate (SkillSpector)
+
+The blocking gate runs NVIDIA [SkillSpector](https://github.com/NVIDIA/SkillSpector) over the
+pristine upstream subtree **before** any adaptation. It runs in deterministic static mode
+(`--no-llm`), and skillsync **quarantines** the skill (issue, no PR, pin frozen) when any
+finding is **CRITICAL or HIGH**; MEDIUM/LOW are surfaced in the PR body. The gate is
+**fail-safe**: if SkillSpector can't run (not installed, crash, bad output), the skill is
+quarantined rather than waved through — a missing scanner never means an unscanned skill.
+
+Install it so the gate can run (skillsync invokes it as `skillspector`):
+
+```sh
+uv tool install skillspector            # or: pipx install skillspector
+# verify: skillspector scan --help
+```
+
+(skillsync's own advisory LLM scan still runs separately as a non-blocking annotation.)
 
 ## Development
 

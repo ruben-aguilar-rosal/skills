@@ -43,7 +43,8 @@ from skillsync.ports.git import GitPort
 from skillsync.ports.llm import LLMError, LLMPort
 from skillsync.stages.adapt import AdaptResult, adapt
 from skillsync.stages.detect import ChangeSet
-from skillsync.stages.gate import DEFAULT_MAX_FILE_BYTES, GateResult, run_gate
+from skillsync.ports.scanner import ScannerPort, scan_subtree
+from skillsync.stages.gate import DEFAULT_MAX_FILE_BYTES, GateResult
 from skillsync.stages.llm_scan import AdvisoryVerdict, advisory_scan
 from skillsync.stages.validate import validate_skill
 
@@ -129,6 +130,7 @@ def run_add(
     git: GitPort,
     llm: LLMPort,
     gh: GhPort,
+    scanner: ScannerPort,
     ref: str = "main",
     adapt: bool = False,
     dest: str | None = None,
@@ -175,8 +177,9 @@ def run_add(
         changed_files=sorted(new_files),
     )
 
-    # 1. Deterministic security gate — runs BEFORE any agent reads upstream.
-    gate = run_gate(changeset, new_files)
+    # 1. Security gate — SkillSpector over the pristine upstream subtree, BEFORE any
+    #    agent reads it. Fail-safe: a scanner that can't run quarantines the skill.
+    gate = scan_subtree(scanner, changeset, new_files)
     if not gate.passed:
         return _quarantine(changeset, gate, gh, root)
 

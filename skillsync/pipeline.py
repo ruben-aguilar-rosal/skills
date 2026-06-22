@@ -36,9 +36,10 @@ from skillsync.pr import build_pr, publish_pr
 from skillsync.ports.gh import GhPort
 from skillsync.ports.git import GitPort
 from skillsync.ports.llm import LLMPort
+from skillsync.ports.scanner import ScannerPort, scan_subtree
 from skillsync.stages.adapt import AdaptResult, adapt
 from skillsync.stages.detect import ChangeSet, detect
-from skillsync.stages.gate import DEFAULT_MAX_FILE_BYTES, GateResult, run_gate
+from skillsync.stages.gate import DEFAULT_MAX_FILE_BYTES, GateResult
 from skillsync.stages.llm_scan import AdvisoryVerdict, advisory_scan
 from skillsync.stages.reconcile import detect_drift, fold_back, verify_preserved
 from skillsync.stages.validate import validate_skill
@@ -103,6 +104,7 @@ def run_sync(
     git: GitPort,
     llm: LLMPort,
     gh: GhPort,
+    scanner: ScannerPort,
     only: str | None = None,
     model: str = _DEFAULT_MODEL,
     options: SyncOptions | None = None,
@@ -140,6 +142,7 @@ def run_sync(
                 git=git,
                 llm=llm,
                 gh=gh,
+                scanner=scanner,
                 model=model,
                 options=options,
             )
@@ -168,6 +171,7 @@ def _sync_one(
     git: GitPort,
     llm: LLMPort,
     gh: GhPort,
+    scanner: ScannerPort,
     model: str,
     options: SyncOptions,
 ) -> SyncOutcome:
@@ -197,9 +201,10 @@ def _sync_one(
     repo_path = git.mirror(repo, ref)
     new_files = git.read_subtree_files(repo_path, ref, changeset.skill_path)
 
-    # 1. Deterministic security gate — runs BEFORE any agent reads upstream. This is
-    #    the load-bearing gate and is never skippable, even on a local run.
-    gate = run_gate(changeset, new_files)
+    # 1. Security gate — SkillSpector over the pristine upstream subtree, BEFORE any
+    #    agent reads it. The load-bearing gate; never skippable, even on a local run.
+    #    Fail-safe: a scanner that can't run quarantines rather than waving through.
+    gate = scan_subtree(scanner, changeset, new_files)
     if not gate.passed:
         return _quarantine(changeset, gate, gh, root)
 
