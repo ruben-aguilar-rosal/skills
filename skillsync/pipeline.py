@@ -50,6 +50,12 @@ _DEFAULT_MODEL = "opus"
 # The flag raised when post-fold-back verification cannot confirm a hand-edit.
 _NOT_PRESERVED_FLAG = "⚠ hand-edit may not be preserved"
 
+
+def _accepted_invalid_flag(errors: list[str]) -> str:
+    """Build the PR flag noting a validation failure the author accepted (accept_invalid)."""
+    joined = "; ".join(errors) or "none"
+    return f"⚠ validation errors accepted via accept_invalid: {joined}"
+
 # Placeholder advisory verdict used when `--skip-advisory` turns the scan off but a
 # PR is still opened: the body must be honest that no scan ran rather than implying a
 # clean one did.
@@ -204,7 +210,8 @@ def _sync_one(
     # 1. Security gate — SkillSpector over the pristine upstream subtree, BEFORE any
     #    agent reads it. The load-bearing gate; never skippable, even on a local run.
     #    Fail-safe: a scanner that can't run quarantines rather than waving through.
-    gate = scan_subtree(scanner, changeset, new_files)
+    #    Findings the author has accepted (pin.accept_findings) no longer block.
+    gate = scan_subtree(scanner, changeset, new_files, pin.accept_findings)
     if not gate.passed:
         return _quarantine(changeset, gate, gh, root)
 
@@ -238,13 +245,16 @@ def _sync_one(
             adapt_result.flags.append(f"{_NOT_PRESERVED_FLAG}: {verdict.note}")
 
     # 6. Deterministic validate — blocks the PR on a non-loadable skill. Optional:
-    #    a local run may skip it to inspect even a malformed generation.
+    #    a local run may skip it to inspect even a malformed generation. A pin with
+    #    accept_invalid ships a flagged PR instead of an issue on a validation fail.
     if options.run_validate:
         validation = validate_skill(
             layout, adapt_result.skill_md_text, DEFAULT_MAX_FILE_BYTES
         )
         if not validation.passed:
-            return _invalid(changeset, validation.errors, gh, root)
+            if not pin.accept_invalid:
+                return _invalid(changeset, validation.errors, gh, root)
+            adapt_result.flags.append(_accepted_invalid_flag(validation.errors))
 
     # 7. Commit the artifacts and bump the pin. The artifacts land in the working
     #    tree on every successful run; the sha bump records the new sync point.

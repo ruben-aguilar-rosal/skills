@@ -394,6 +394,65 @@ def test_validate_fail_emits_issue_and_no_pr(tmp_path: Path) -> None:
     assert read_text(layout.skill_md_path) == _UPSTREAM_OLD
 
 
+def test_accept_invalid_ships_a_flagged_pr_instead_of_an_issue(tmp_path: Path) -> None:
+    """A pin with accept_invalid ships a flagged PR when validation fails, not an issue."""
+    config = Config(
+        sources=[
+            Source(
+                repo="owner/repo",
+                ref="main",
+                skills=[
+                    SkillPin(path="skills/demo", synced_sha="sha1", accept_invalid=True)
+                ],
+            )
+        ]
+    )
+    git = _changed_git()
+    layout = SkillLayout.resolve(tmp_path, "skills/demo")
+    write_text(layout.skill_md_path, _UPSTREAM_OLD)
+    write_text(layout.adaptation_path, "rules")
+    llm = FakeLLM({_ADVISORY_KEY: _advisory(), _PATCH_KEY: _adapt(_ADAPTED_INVALID)})
+    gh = FakeGh()
+
+    outcomes = run_sync(config, tmp_path, git=git, llm=llm, gh=gh, scanner=_clean())
+
+    assert outcomes[0].status == "pr"
+    assert not any(c.method == "open_issue" for c in gh.calls)
+    # The PR is flagged so the accepted-invalid state is visible in review.
+    assert any("accept_invalid" in f for f in outcomes[0].flags)
+    assert config.sources[0].skills[0].synced_sha == "sha2"
+
+
+def test_accepted_finding_passes_the_gate(tmp_path: Path) -> None:
+    """A CRITICAL finding whose rule ID is in accept_findings no longer quarantines."""
+    config = Config(
+        sources=[
+            Source(
+                repo="owner/repo",
+                ref="main",
+                skills=[
+                    SkillPin(
+                        path="skills/demo", synced_sha="sha1", accept_findings=["PI-001"]
+                    )
+                ],
+            )
+        ]
+    )
+    git = _changed_git()
+    layout = SkillLayout.resolve(tmp_path, "skills/demo")
+    write_text(layout.skill_md_path, _UPSTREAM_OLD)
+    write_text(layout.adaptation_path, "rules")
+    llm = FakeLLM({_ADVISORY_KEY: _advisory(), _PATCH_KEY: _adapt(_ADAPTED_VALID)})
+
+    # The scanner flags PI-001 CRITICAL — but it's accepted, so the gate passes.
+    outcomes = run_sync(
+        config, tmp_path, git=git, llm=llm, gh=FakeGh(), scanner=_critical_scanner()
+    )
+
+    assert outcomes[0].status == "pr"
+    assert config.sources[0].skills[0].synced_sha == "sha2"
+
+
 # --- drift + change -> fold_back + verify ---------------------------------------
 
 

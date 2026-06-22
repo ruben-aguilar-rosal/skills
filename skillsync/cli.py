@@ -7,6 +7,7 @@ from pathlib import Path
 import typer
 
 from skillsync import __version__
+from skillsync.commands.accept import AcceptError, run_accept
 from skillsync.commands.add import run_add
 from skillsync.commands.discovery import DiscoveryNotice, surface_discoveries
 from skillsync.commands.ignore import IgnoreError, run_ignore
@@ -476,6 +477,56 @@ def ignore_cmd(
         raise typer.Exit(code=1) from exc
 
     typer.echo(f"ignoring {skill_path} from {repo}")
+
+
+@app.command(name="accept")
+def accept_cmd(
+    repo: str = typer.Argument(..., help="Upstream repo, e.g. owner/repo."),
+    skill_path: str = typer.Argument(..., help="Skill path (pin) to record acceptance for."),
+    findings: str | None = typer.Option(
+        None,
+        "--findings",
+        help="Comma-separated SkillSpector rule IDs to accept (e.g. P1,SC2).",
+    ),
+    invalid: bool = typer.Option(
+        False, "--invalid", help="Accept a validation failure (ship a flagged PR)."
+    ),
+    config_path: Path = typer.Option(
+        Path("sources.yaml"), "--config", help="Path to sources.yaml."
+    ),
+) -> None:
+    """Record reviewed-and-accepted security findings / validation failure for a skill.
+
+    After a skill quarantines (CRITICAL/HIGH findings) or fails validation, review the
+    filed issue, then accept the specific findings (`--findings P1,SC2`) and/or the
+    validation failure (`--invalid`). This writes a narrow override onto the pin in
+    sources.yaml — a NEW finding still blocks. Re-run `skillsync add`/`sync` afterwards
+    to ship the now-accepted skill.
+    """
+    try:
+        config = load_config(config_path)
+    except ConfigError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    rule_ids = [r.strip() for r in (findings or "").split(",") if r.strip()]
+    try:
+        run_accept(
+            config, config_path, repo, skill_path, findings=rule_ids, invalid=invalid
+        )
+    except AcceptError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    accepted = []
+    if rule_ids:
+        accepted.append(f"findings {', '.join(rule_ids)}")
+    if invalid:
+        accepted.append("validation failure")
+    typer.echo(
+        f"accepted {' and '.join(accepted)} for {skill_path} from {repo}; "
+        "re-run skillsync add/sync to ship it"
+    )
 
 
 @app.command(name="regen")

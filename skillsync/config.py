@@ -15,7 +15,14 @@ import yaml
 _log = logging.getLogger(__name__)
 
 _SOURCE_KEYS = {"repo", "ref", "skills", "watch", "ignore", "dest"}
-_SKILL_KEYS = {"path", "synced_sha", "hold", "dest"}
+_SKILL_KEYS = {
+    "path",
+    "synced_sha",
+    "hold",
+    "dest",
+    "accept_findings",
+    "accept_invalid",
+}
 
 # Default parent dir for a skill folder when neither the pin nor its source sets a
 # `dest`. Skills land in `<dest>/<skill-name>/`.
@@ -33,12 +40,21 @@ class SkillPin:
     `dest` overrides where this skill's folder is stored locally (the parent dir
     its name is appended to); `None` falls back to the source's `dest`, then the
     global default. Use it to group specific skills from different repos together.
+
+    `accept_findings` lists SkillSpector rule IDs the author has reviewed and
+    accepted: a blocking (CRITICAL/HIGH) finding with one of these IDs is demoted to
+    a non-blocking annotation, so the gate passes for *those specific* findings while
+    any NEW one still quarantines. `accept_invalid` accepts a skill that fails the
+    deterministic validate stage (e.g. a missing referenced file), shipping a flagged
+    PR instead of filing an issue.
     """
 
     path: str
     synced_sha: str | None
     hold: bool = False
     dest: str | None = None
+    accept_findings: list[str] = field(default_factory=list)
+    accept_invalid: bool = False
 
 
 @dataclass
@@ -129,7 +145,7 @@ def _dump_source(source: Source) -> dict[str, Any]:
 
 
 def _dump_skill(pin: SkillPin) -> dict[str, Any]:
-    """Serialize one SkillPin, emitting `dest` only when it is set."""
+    """Serialize one SkillPin, emitting optional keys only when they are set."""
     out: dict[str, Any] = {
         "path": pin.path,
         "synced_sha": pin.synced_sha,
@@ -137,6 +153,10 @@ def _dump_skill(pin: SkillPin) -> dict[str, Any]:
     }
     if pin.dest is not None:
         out["dest"] = pin.dest
+    if pin.accept_findings:
+        out["accept_findings"] = list(pin.accept_findings)
+    if pin.accept_invalid:
+        out["accept_invalid"] = pin.accept_invalid
     return out
 
 
@@ -179,4 +199,6 @@ def _parse_skill(
         synced_sha=entry.get("synced_sha"),
         hold=entry.get("hold", False),
         dest=entry.get("dest"),
+        accept_findings=list(entry.get("accept_findings") or []),
+        accept_invalid=entry.get("accept_invalid", False),
     )

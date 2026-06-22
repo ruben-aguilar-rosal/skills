@@ -58,6 +58,12 @@ _ONBOARDING_LABEL = "onboarding"
 # Label applied to a vendored (verbatim, no-adaptation) onboarding PR.
 _VENDORED_LABEL = "vendored"
 
+
+def _accepted_invalid_flag(errors: list[str]) -> str:
+    """Build the PR flag noting a validation failure the author accepted (accept_invalid)."""
+    joined = "; ".join(errors) or "none"
+    return f"⚠ validation errors accepted via accept_invalid: {joined}"
+
 # Placeholder advisory verdict for a vendored onboarding: no LLM ran, so the PR
 # body is honest that the upstream was committed verbatim without an advisory scan.
 _VENDORED_ADVISORY = AdvisoryVerdict(
@@ -179,7 +185,8 @@ def run_add(
 
     # 1. Security gate — SkillSpector over the pristine upstream subtree, BEFORE any
     #    agent reads it. Fail-safe: a scanner that can't run quarantines the skill.
-    gate = scan_subtree(scanner, changeset, new_files)
+    #    Findings the author has accepted (pin.accept_findings) no longer block.
+    gate = scan_subtree(scanner, changeset, new_files, pin.accept_findings)
     if not gate.passed:
         return _quarantine(changeset, gate, gh, root)
 
@@ -218,9 +225,12 @@ def _onboard_vendored(
     if skill_md is None:
         return _invalid(changeset, ["upstream subtree has no SKILL.md"], gh, root)
 
+    flags: list[str] = []
     validation = validate_skill(layout, skill_md, DEFAULT_MAX_FILE_BYTES)
     if not validation.passed:
-        return _invalid(changeset, validation.errors, gh, root)
+        if not pin.accept_invalid:
+            return _invalid(changeset, validation.errors, gh, root)
+        flags.append(_accepted_invalid_flag(validation.errors))
 
     # Mirror the whole subtree, copy the ship-along aux files beside SKILL.md, and
     # commit the upstream SKILL.md verbatim. No adaptation.md and no .generated
@@ -231,7 +241,7 @@ def _onboard_vendored(
     pin.synced_sha = changeset.to_sha
     save_config(config, root / "sources.yaml")
 
-    vendored = AdaptResult(skill_md_text=skill_md, snapshot_text=skill_md, flags=[])
+    vendored = AdaptResult(skill_md_text=skill_md, snapshot_text=skill_md, flags=flags)
     return _open_or_local(
         changeset, gate, _VENDORED_ADVISORY, vendored, _VENDORED_LABEL, gh, root, open_pr
     )
@@ -263,12 +273,15 @@ def _onboard_adapted(
         layout, changeset, new_files, adaptation_text, llm, mode="full", model=model
     )
 
-    # 5. Deterministic validate — blocks the PR on a non-loadable skill.
+    # 5. Deterministic validate — blocks the PR on a non-loadable skill, unless the
+    #    pin has accept_invalid (then ship a flagged PR instead of filing an issue).
     validation = validate_skill(
         layout, adapt_result.skill_md_text, DEFAULT_MAX_FILE_BYTES
     )
     if not validation.passed:
-        return _invalid(changeset, validation.errors, gh, root)
+        if not pin.accept_invalid:
+            return _invalid(changeset, validation.errors, gh, root)
+        adapt_result.flags.append(_accepted_invalid_flag(validation.errors))
 
     # 6. Write the artifacts and bump the pin.
     _write_artifacts(layout, new_files, adapt_result, adaptation_text)
@@ -319,17 +332,23 @@ def _open_or_local(
 def _register_pin(
     config: Config, root: Path, repo: str, skill_path: str, ref: str, dest: str | None
 ) -> SkillPin:
-    """Append an unsynced pin under the matching/new Source and persist the config.
+    """Find-or-create the pin under the matching/new Source and persist the config.
 
-    `dest`, when given, is recorded on the pin so the skill is stored under that
-    parent dir. Returns the appended pin so the caller can bump its `synced_sha`.
+    Reuses an existing pin for `skill_path` (so re-running `add` after recording an
+    acceptance keeps that pin's `accept_findings`/`accept_invalid` rather than
+    appending a duplicate). A new pin is unsynced; `dest`, when given, is recorded so
+    the skill is stored under that parent dir. Returns the pin for the caller to bump.
     """
     source = next((s for s in config.sources if s.repo == repo), None)
     if source is None:
         source = Source(repo=repo, ref=ref, skills=[])
         config.sources.append(source)
-    pin = SkillPin(path=skill_path, synced_sha=None, hold=False, dest=dest)
-    source.skills.append(pin)
+    pin = next((p for p in source.skills if p.path == skill_path), None)
+    if pin is None:
+        pin = SkillPin(path=skill_path, synced_sha=None, hold=False, dest=dest)
+        source.skills.append(pin)
+    elif dest is not None:
+        pin.dest = dest
     save_config(config, root / "sources.yaml")
     return pin
 

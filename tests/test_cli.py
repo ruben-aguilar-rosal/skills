@@ -441,6 +441,56 @@ def test_discover_open_issues_flag_files_awareness_issues(
     )
 
 
+def test_accept_records_findings_and_invalid(tmp_path: Path) -> None:
+    """`skillsync accept` writes accept_findings/accept_invalid onto the pin."""
+    config_path = tmp_path / "sources.yaml"
+    config_path.write_text(
+        "sources:\n"
+        "  - repo: owner/repo\n"
+        "    ref: main\n"
+        "    skills:\n"
+        "      - path: skills/jira\n"
+        "        synced_sha: x\n"
+    )
+
+    result = RUNNER.invoke(
+        app,
+        [
+            "accept",
+            "owner/repo",
+            "skills/jira",
+            "--findings",
+            "P1,SC2",
+            "--invalid",
+            "--config",
+            str(config_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    from skillsync.config import load_config
+
+    pin = load_config(config_path).sources[0].skills[0]
+    assert pin.accept_findings == ["P1", "SC2"]
+    assert pin.accept_invalid is True
+
+
+def test_accept_unknown_pin_exits_one(tmp_path: Path) -> None:
+    """`skillsync accept` for a path with no pin exits 1 with a message."""
+    config_path = tmp_path / "sources.yaml"
+    config_path.write_text(
+        "sources:\n  - repo: owner/repo\n    ref: main\n    skills: []\n"
+    )
+
+    result = RUNNER.invoke(
+        app,
+        ["accept", "owner/repo", "skills/nope", "--findings", "P1", "--config", str(config_path)],
+    )
+
+    assert result.exit_code == 1
+    assert "skills/nope" in result.output
+
+
 def test_ignore_appends_to_ignore_list(tmp_path: Path) -> None:
     """`skillsync ignore` records the path so discovery stops surfacing it."""
     config_path = tmp_path / "sources.yaml"

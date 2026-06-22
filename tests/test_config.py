@@ -219,6 +219,37 @@ def test_skill_dest_resolves_precedence() -> None:
     assert skill_dest(bare, SkillPin(path="a/x", synced_sha=None)) == "skills"
 
 
+def test_accept_fields_default_and_round_trip(tmp_path: Path) -> None:
+    """`accept_findings`/`accept_invalid` default empty/False and survive save→load."""
+    config = Config(
+        sources=[
+            Source(
+                repo="owner/repo",
+                ref="main",
+                skills=[
+                    SkillPin(path="a/plain", synced_sha="x"),
+                    SkillPin(
+                        path="a/jira",
+                        synced_sha="y",
+                        accept_findings=["P1", "SC2"],
+                        accept_invalid=True,
+                    ),
+                ],
+            )
+        ]
+    )
+    config_path = tmp_path / "sources.yaml"
+
+    save_config(config, config_path)
+    reloaded = load_config(config_path)
+
+    assert reloaded == config
+    assert reloaded.sources[0].skills[0].accept_findings == []
+    assert reloaded.sources[0].skills[0].accept_invalid is False
+    assert reloaded.sources[0].skills[1].accept_findings == ["P1", "SC2"]
+    assert reloaded.sources[0].skills[1].accept_invalid is True
+
+
 def test_load_profile_reads_file(tmp_path: Path) -> None:
     """`load_profile` returns the file contents when present."""
     profile_path = tmp_path / "profile.md"

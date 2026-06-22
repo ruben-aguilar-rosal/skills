@@ -48,15 +48,24 @@ class ScannerPort(Protocol):
 
 
 def scan_subtree(
-    scanner: ScannerPort, changeset: ChangeSet, files: dict[str, str]
+    scanner: ScannerPort,
+    changeset: ChangeSet,
+    files: dict[str, str],
+    accepted: list[str] | None = None,
 ) -> GateResult:
     """Materialize `files` to a temp dir, scan it, and return the gate verdict.
 
-    The block decision is skillsync's, not the scanner's: the gate fails iff any
-    finding is CRITICAL or HIGH. A `ScanError` is converted into a failing
-    `GateResult` (fail-safe quarantine) rather than propagating, so a missing or
-    broken scanner stops the skill instead of waving it through.
+    The block decision is skillsync's, not the scanner's: the gate fails iff a
+    CRITICAL/HIGH finding (mapped to `fail` by the adapter) remains. `accepted` lists
+    rule IDs the author has reviewed and accepted — a blocking finding with one of
+    those IDs is demoted to a `warn` (still surfaced in the PR, no longer blocking),
+    so accepting `P1` does not blanket-accept a freshly-introduced finding.
+
+    A `ScanError` is converted into a failing `GateResult` (fail-safe quarantine)
+    rather than propagating, so a missing or broken scanner stops the skill instead
+    of waving it through.
     """
+    accepted_ids = set(accepted or [])
     try:
         with tempfile.TemporaryDirectory(prefix="skillsync-scan-") as tmp:
             tmp_dir = Path(tmp)
@@ -66,15 +75,28 @@ def scan_subtree(
     except ScanError as exc:
         return _fail_safe(changeset, exc)
 
-    # The adapter maps CRITICAL/HIGH issues to `fail` severity (see SkillSpectorCli),
-    # so the block decision is simply "any failing finding present".
-    blocked = any(finding.severity == "fail" for finding in result.findings)
+    findings = [_apply_acceptance(f, accepted_ids) for f in result.findings]
+    # The adapter maps CRITICAL/HIGH issues to `fail`; after acceptance, the gate
+    # fails iff a non-accepted blocking finding remains.
+    blocked = any(finding.severity == "fail" for finding in findings)
     return GateResult(
         passed=not blocked,
-        findings=result.findings,
+        findings=findings,
         commands=result.commands,
         urls=result.urls,
     )
+
+
+def _apply_acceptance(finding: Finding, accepted_ids: set[str]) -> Finding:
+    """Demote an accepted blocking finding to a non-blocking annotation."""
+    if finding.severity == "fail" and finding.kind in accepted_ids:
+        return Finding(
+            severity="warn",
+            kind=finding.kind,
+            detail=f"{finding.detail} (accepted via accept_findings)",
+            file=finding.file,
+        )
+    return finding
 
 
 def _fail_safe(changeset: ChangeSet, exc: ScanError) -> GateResult:

@@ -45,6 +45,7 @@ uv pip install -e .          # or: pip install -e .
 | `skillsync sync --no-pr` | Local mode: adapt and write the artifacts to the working tree (and bump the pin) without opening a PR — inspect and play with them first. Pair with `--skip-advisory` / `--skip-reconcile` / `--skip-validate` to turn off optional stages. The security gate and adapt always run. |
 | `skillsync discover [--open-issues]` | Preview new/removed skills in watched folders. Read-only by default (prints findings, opens nothing); `--open-issues` files the awareness issues like `sync` does. |
 | `skillsync ignore <repo> <skill-path>` | Record a durable "no" for a discovered skill, so future syncs stop surfacing it. The rejection counterpart to `add`. |
+| `skillsync accept <repo> <skill-path> [--findings P1,SC2] [--invalid]` | Record reviewed-and-accepted security findings and/or a validation failure for a skill, so it stops being quarantined/blocked. Narrow and auditable — a new finding still blocks. Re-run `add`/`sync` after. |
 | `skillsync regen <name> [--force]` | Regenerate one skill's `SKILL.md` from its on-disk `.upstream/` + `adaptation.md` (a full rebuild; never bumps `synced_sha`). |
 | `skillsync reprofile` | Re-bake the current `profile.md` into every skill's `adaptation.md`, one PR per skill. |
 | `skillsync link [--dry-run]` | Symlink each `skills/<name>/` into the native skills dir (`$SKILLSYNC_LINK_DIR`, else `~/.claude/skills`). Idempotent; skips non-symlink conflicts. |
@@ -201,6 +202,23 @@ uv tool install skillspector            # or: pipx install skillspector
 ```
 
 (skillsync's own advisory LLM scan still runs separately as a non-blocking annotation.)
+
+#### Accepting findings (overriding a quarantine)
+
+There is no blanket bypass. When a skill quarantines or fails validation, review the filed
+issue, then record a **narrow, auditable** acceptance on its pin and re-run:
+
+```sh
+# accept specific reviewed SkillSpector rule IDs (a NEW finding still blocks)
+skillsync accept owner/repo .claude/skills/jira --findings P1,SC2
+# accept a validation failure (e.g. a missing referenced file) — ships a flagged PR
+skillsync accept owner/repo .claude/skills/skill-creator --invalid
+# then re-run; the accepted findings/validation no longer block
+skillsync add owner/repo .claude/skills/jira
+```
+
+The acceptance lives in `sources.yaml` (`accept_findings` / `accept_invalid` on the pin), so
+it is committed and reviewable, survives re-runs, and never blanket-accepts future findings.
 
 ## Development
 

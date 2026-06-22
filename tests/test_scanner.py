@@ -90,6 +90,36 @@ def test_scan_subtree_allows_medium_and_low(tmp_path: Path) -> None:
     assert len(result.findings) == 2
 
 
+def test_scan_subtree_accepted_finding_no_longer_blocks(tmp_path: Path) -> None:
+    """An accepted rule ID is demoted to a non-blocking annotation; the gate passes."""
+    scanner = FakeScanner.from_issues(
+        score=60, severity="CRITICAL", issues=[_finding("CRITICAL", "P1")]
+    )
+
+    result = scan_subtree(scanner, _changeset(), {"SKILL.md": "x"}, accepted=["P1"])
+
+    assert result.passed is True
+    # The finding is still surfaced (demoted to warn), with an audit note.
+    [f] = result.findings
+    assert f.severity == "warn"
+    assert "accepted" in f.detail.lower()
+
+
+def test_scan_subtree_unaccepted_finding_still_blocks(tmp_path: Path) -> None:
+    """Accepting one rule does not wave through a different blocking finding."""
+    scanner = FakeScanner.from_issues(
+        score=85,
+        severity="CRITICAL",
+        issues=[_finding("CRITICAL", "P1"), _finding("HIGH", "SC2")],
+    )
+
+    result = scan_subtree(scanner, _changeset(), {"SKILL.md": "x"}, accepted=["P1"])
+
+    # P1 is accepted, but SC2 still blocks.
+    assert result.passed is False
+    assert any(f.severity == "fail" and f.kind == "SC2" for f in result.findings)
+
+
 def test_scan_subtree_fail_safe_quarantines_on_scan_error(tmp_path: Path) -> None:
     """A scanner that raises ScanError fails the gate (fail-safe, never silent)."""
     scanner = FakeScanner(error=ScanError("skillspector not installed"))
