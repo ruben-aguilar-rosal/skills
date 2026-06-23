@@ -179,3 +179,34 @@ sources:
   - path: skills/karpathy-guidelines
     synced_sha: 2c606141936f1eeef17fa3043a72095b4765b9c2
     hold: false
+- repo: datadog-labs/agent-skills
+  ref: main
+  watch:
+  - .
+  ignore: []
+  dest: skills/datadog
+  skills:
+  - path: dd-docs
+    synced_sha: 9dbf79d0dccc53ac040fc151009d2179363bf34f
+    hold: false
+    dest: skills/datadog
+  - path: dd-logs
+    synced_sha: 9dbf79d0dccc53ac040fc151009d2179363bf34f
+    hold: false
+    dest: skills/datadog
+  - path: dd-monitors
+    synced_sha: 9dbf79d0dccc53ac040fc151009d2179363bf34f
+    hold: false
+    dest: skills/datadog
+  - path: dd-pup
+    synced_sha: 9dbf79d0dccc53ac040fc151009d2179363bf34f
+    hold: false
+    dest: skills/datadog
+  - path: dd-apm
+    synced_sha: 9dbf79d0dccc53ac040fc151009d2179363bf34f
+    hold: false
+    dest: skills/datadog
+    accept_findings:
+    - PE3
+    - TM2
+    - YR1
