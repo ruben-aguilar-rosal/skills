@@ -169,3 +169,13 @@ sources:
     synced_sha: null
     hold: false
     dest: skills/productivity
+- repo: multica-ai/andrej-karpathy-skills
+  ref: main
+  watch:
+  - skills
+  ignore: []
+  dest: skills/engineering
+  skills:
+  - path: skills/karpathy-guidelines
+    synced_sha: 2c606141936f1eeef17fa3043a72095b4765b9c2
+    hold: false
