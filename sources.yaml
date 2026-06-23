@@ -3,7 +3,8 @@ sources:
   ref: main
   watch:
   - .claude/skills/
-  ignore: []
+  ignore:
+  - .claude/skills/general
   dest: skills/aily
   skills:
   - path: .claude/skills/create-ais-ticket
@@ -46,4 +47,29 @@ sources:
     hold: false
   - path: scripts/claude-code/skills/publish-report
     synced_sha: 93411c5af6813bd84092143446c2d308f471b84a
+    hold: false
+- repo: DietrichGebert/ponytail
+  ref: main
+  watch:
+  - skills/
+  ignore: []
+  dest: skills/ponytail
+  skills:
+  - path: skills/ponytail
+    synced_sha: dedc97ca7c8a1e7463ac5b36f7fe4b28c3c435a2
+    hold: false
+  - path: skills/ponytail-audit
+    synced_sha: dedc97ca7c8a1e7463ac5b36f7fe4b28c3c435a2
+    hold: false
+  - path: skills/ponytail-debt
+    synced_sha: dedc97ca7c8a1e7463ac5b36f7fe4b28c3c435a2
+    hold: false
+  - path: skills/ponytail-gain
+    synced_sha: dedc97ca7c8a1e7463ac5b36f7fe4b28c3c435a2
+    hold: false
+  - path: skills/ponytail-review
+    synced_sha: dedc97ca7c8a1e7463ac5b36f7fe4b28c3c435a2
+    hold: false
+  - path: skills/ponytail-help
+    synced_sha: dedc97ca7c8a1e7463ac5b36f7fe4b28c3c435a2
     hold: false
