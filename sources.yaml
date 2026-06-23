@@ -1,7 +1,49 @@
 sources:
-  - repo: mattpocock/skills
-    ref: main
-    skills:
-      - path: engineering/to-issues
-        synced_sha: null
-        hold: false
+- repo: Aily-Labs/aily-devops-tools
+  ref: main
+  watch:
+  - .claude/skills/
+  ignore: []
+  dest: skills/aily
+  skills:
+  - path: .claude/skills/create-ais-ticket
+    synced_sha: 6cc1f49cc80770a056ec69a44bcdc6c98859644a
+    hold: false
+  - path: .claude/skills/aily-logs
+    synced_sha: 6cc1f49cc80770a056ec69a44bcdc6c98859644a
+    hold: false
+  - path: .claude/skills/aily-context
+    synced_sha: 6cc1f49cc80770a056ec69a44bcdc6c98859644a
+    hold: false
+  - path: .claude/skills/create-tp-ticket
+    synced_sha: 6cc1f49cc80770a056ec69a44bcdc6c98859644a
+    hold: false
+  - path: .claude/skills/humanizer
+    synced_sha: 93411c5af6813bd84092143446c2d308f471b84a
+    hold: false
+  - path: .claude/skills/infra-triage
+    synced_sha: 93411c5af6813bd84092143446c2d308f471b84a
+    hold: false
+  - path: .claude/skills/jira
+    synced_sha: 93411c5af6813bd84092143446c2d308f471b84a
+    hold: false
+    accept_findings:
+    - E1
+    - PE3
+    - RA2
+  - path: .claude/skills/review-before-ticket
+    synced_sha: 93411c5af6813bd84092143446c2d308f471b84a
+    hold: false
+    accept_findings:
+    - E1
+    - PE3
+  - path: .claude/skills/skill-creator
+    synced_sha: 93411c5af6813bd84092143446c2d308f471b84a
+    hold: false
+    accept_invalid: true
+  - path: .claude/skills/taco-procedure
+    synced_sha: 93411c5af6813bd84092143446c2d308f471b84a
+    hold: false
+  - path: scripts/claude-code/skills/publish-report
+    synced_sha: 93411c5af6813bd84092143446c2d308f471b84a
+    hold: false
