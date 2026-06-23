@@ -73,3 +73,99 @@ sources:
   - path: skills/ponytail-help
     synced_sha: dedc97ca7c8a1e7463ac5b36f7fe4b28c3c435a2
     hold: false
+- repo: mattpocock/skills
+  ref: main
+  watch:
+  - skills/engineering/
+  - skills/productivity/
+  ignore: []
+  skills:
+  - path: skills/engineering/ask-matt
+    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    hold: false
+    dest: skills/engineering
+    accept_findings:
+    - MP3
+  - path: skills/engineering/codebase-design
+    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    hold: false
+    dest: skills/engineering
+    accept_invalid: true
+  - path: skills/engineering/diagnosing-bugs
+    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    hold: false
+    dest: skills/engineering
+    accept_findings:
+    - P6
+    accept_invalid: true
+  - path: skills/engineering/domain-modeling
+    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    hold: false
+    dest: skills/engineering
+    accept_invalid: true
+  - path: skills/engineering/grill-with-docs
+    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    hold: false
+    dest: skills/engineering
+  - path: skills/engineering/implement
+    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    hold: false
+    dest: skills/engineering
+  - path: skills/engineering/improve-codebase-architecture
+    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    hold: false
+    dest: skills/engineering
+    accept_invalid: true
+  - path: skills/engineering/prototype
+    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    hold: false
+    dest: skills/engineering
+    accept_invalid: true
+  - path: skills/engineering/resolving-merge-conflicts
+    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    hold: false
+    dest: skills/engineering
+  - path: skills/engineering/setup-matt-pocock-skills
+    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    hold: false
+    dest: skills/engineering
+    accept_invalid: true
+  - path: skills/engineering/tdd
+    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    hold: false
+    dest: skills/engineering
+    accept_invalid: true
+  - path: skills/engineering/to-issues
+    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    hold: false
+    dest: skills/engineering
+  - path: skills/engineering/to-prd
+    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    hold: false
+    dest: skills/engineering
+  - path: skills/engineering/triage
+    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    hold: false
+    dest: skills/engineering
+    accept_invalid: true
+  - path: skills/productivity/grill-me
+    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    hold: false
+    dest: skills/productivity
+  - path: skills/productivity/grilling
+    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    hold: false
+    dest: skills/productivity
+  - path: skills/productivity/handoff
+    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    hold: false
+    dest: skills/productivity
+  - path: skills/productivity/teach
+    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    hold: false
+    dest: skills/productivity
+    accept_invalid: true
+  - path: skills/productivity/writing-great-skills
+    synced_sha: null
+    hold: false
+    dest: skills/productivity
