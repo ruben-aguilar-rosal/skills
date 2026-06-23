@@ -166,9 +166,10 @@ sources:
     dest: skills/productivity
     accept_invalid: true
   - path: skills/productivity/writing-great-skills
-    synced_sha: null
+    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
     hold: false
     dest: skills/productivity
+    accept_invalid: true
 - repo: multica-ai/andrej-karpathy-skills
   ref: main
   watch:
