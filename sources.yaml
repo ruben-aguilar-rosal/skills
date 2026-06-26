@@ -211,3 +211,14 @@ sources:
     - PE3
     - TM2
     - YR1
+- repo: cobusgreyling/loop-engineering
+  ref: main
+  watch:
+  - skills/
+  ignore: []
+  dest: skills/loop
+  skills:
+  - path: skills/loop-verifier
+    synced_sha: d7285dd1ee18ba53981f80d7b1b32b920ed92d77
+    hold: false
+    dest: skills/loop
