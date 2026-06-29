@@ -211,3 +211,32 @@ sources:
     - PE3
     - TM2
     - YR1
+- repo: leonxlnx/taste-skill
+  ref: main
+  watch:
+  - skills/
+  ignore: []
+  dest: skills/ui/taste
+  skills:
+  - path: skills/taste-skill
+    synced_sha: 06d6028b5c623016c59ce8536f578e5a1127b499
+    hold: false
+    accept_findings:
+    - P2
+    accept_invalid: true
+  - path: skills/soft-skill
+    synced_sha: 06d6028b5c623016c59ce8536f578e5a1127b499
+    hold: false
+    accept_invalid: true
+  - path: skills/minimalist-skill
+    synced_sha: 06d6028b5c623016c59ce8536f578e5a1127b499
+    hold: false
+    accept_invalid: true
+  - path: skills/brutalist-skill
+    synced_sha: 06d6028b5c623016c59ce8536f578e5a1127b499
+    hold: false
+    accept_invalid: true
+  - path: skills/redesign-skill
+    synced_sha: 06d6028b5c623016c59ce8536f578e5a1127b499
+    hold: false
+    accept_invalid: true
