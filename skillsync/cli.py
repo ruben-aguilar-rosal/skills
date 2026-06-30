@@ -155,13 +155,15 @@ def _print_status(rows: list[SkillStatus]) -> None:
         return
 
     width = max(len(row.name) for row in rows)
+    origin_width = max(len(row.origin) for row in rows)
     for row in rows:
+        origin = row.origin.ljust(origin_width)
         sha = row.synced_sha or "-------"
         ahead = {True: "ahead", False: "synced", None: "?"}[row.upstream_ahead]
         drift = "drift" if row.drift else "clean"
         link = "linked" if row.linked else "unlinked"
         typer.echo(
-            f"{row.name.ljust(width)}  {sha}  upstream={ahead}  {drift}  {link}"
+            f"{row.name.ljust(width)}  {origin}  {sha}  upstream={ahead}  {drift}  {link}"
         )
 
 
@@ -203,7 +205,9 @@ def link_cmd(
                 err=True,
             )
             continue
-        typer.echo(f"{action.name.ljust(width)}  {prefix}{action.action}")
+        typer.echo(
+            f"{action.name.ljust(width)}  {prefix}{action.action}  ({action.origin})"
+        )
 
 
 @app.command(name="detect")

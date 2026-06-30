@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from skillsync.layout import discover_skills, layouts_from_config
+from skillsync.layout import discover_skills, pin_index
 
 if TYPE_CHECKING:
     from skillsync.config import Config
@@ -37,19 +37,25 @@ _DEFAULT_TARGET_DIR = Path.home() / ".claude" / "skills"
 
 Action = Literal["create", "update", "unchanged", "conflict"]
 
+# Whether a skill is tracked in sources.yaml (synced from upstream) or hand-written
+# in this repo with no upstream. Both are linked identically — origin is for display.
+Origin = Literal["vendored", "local"]
+
 
 @dataclass(frozen=True)
 class LinkAction:
     """One planned/performed link operation for a single skill folder.
 
     `link_path` is the symlink slot under the target dir; `source` is the resolved
-    skill folder it points (or would point) at; `action` is the verdict.
+    skill folder it points (or would point) at; `action` is the verdict; `origin`
+    is `vendored` (pinned in sources.yaml) or `local` (hand-written).
     """
 
     name: str
     link_path: Path
     source: Path
     action: Action
+    origin: Origin
 
 
 def default_target_dir() -> Path:
@@ -67,16 +73,21 @@ def run_link(
 ) -> list[LinkAction]:
     """Symlink each configured skill folder into `target_dir`.
 
-    When `config` is given, skills are resolved under their effective `dest` dirs
-    (the dest-aware, config-driven enumeration); otherwise it falls back to scanning
-    the default `skills/` dir. Returns one `LinkAction` per skill describing what was
-    (or, with `dry_run`, would be) done. A non-symlink path already occupying a slot
-    is reported as `conflict` and left untouched. With `dry_run=True` no filesystem
+    Skills are enumerated from the FILESYSTEM (`discover_skills`): every folder
+    under `skills/` with a `SKILL.md` is linked, whether or not it is tracked in
+    `sources.yaml`. So a hand-written local skill is linked exactly like a vendored
+    one — no registration step. When `config` is given, each skill is tagged
+    `vendored` (it has a pin) or `local` (it does not); without a config every skill
+    is reported `local`. Returns one `LinkAction` per skill describing what was (or,
+    with `dry_run`, would be) done. A non-symlink path already occupying a slot is
+    reported as `conflict` and left untouched. With `dry_run=True` no filesystem
     changes are made — not even creating `target_dir`.
     """
-    layouts = layouts_from_config(config, root) if config is not None else discover_skills(root)
+    layouts = discover_skills(root)
     if not layouts:
         return []
+
+    pins = pin_index(config, root)
 
     if not dry_run:
         target_dir.mkdir(parents=True, exist_ok=True)
@@ -86,11 +97,16 @@ def run_link(
         source = layout.root.resolve()
         link_path = target_dir / layout.name
         action = _plan(link_path, source)
+        origin: Origin = "vendored" if source in pins else "local"
         if not dry_run and action in ("create", "update"):
             _apply(link_path, source, action)
         actions.append(
             LinkAction(
-                name=layout.name, link_path=link_path, source=source, action=action
+                name=layout.name,
+                link_path=link_path,
+                source=source,
+                action=action,
+                origin=origin,
             )
         )
     return actions

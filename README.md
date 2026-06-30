@@ -48,8 +48,8 @@ uv pip install -e .          # or: pip install -e .
 | `skillsync accept <repo> <skill-path> [--findings P1,SC2] [--invalid]` | Record reviewed-and-accepted security findings and/or a validation failure for a skill, so it stops being quarantined/blocked. Narrow and auditable — a new finding still blocks. Re-run `add`/`sync` after. |
 | `skillsync regen <name> [--force]` | Regenerate one skill's `SKILL.md` from its on-disk `.upstream/` + `adaptation.md` (a full rebuild; never bumps `synced_sha`). |
 | `skillsync reprofile` | Re-bake the current `profile.md` into every skill's `adaptation.md`, one PR per skill. |
-| `skillsync link [--dry-run]` | Symlink each `skills/<name>/` into the native skills dir (`$SKILLSYNC_LINK_DIR`, else `~/.claude/skills`). Idempotent; skips non-symlink conflicts. |
-| `skillsync status [--offline]` | Per skill: short `synced_sha`, upstream-ahead, `SKILL.md`-vs-`.generated` drift, and link state. |
+| `skillsync link [--dry-run]` | Symlink every skill folder under `skills/` (vendored **and** local) into the native skills dir (`$SKILLSYNC_LINK_DIR`, else `~/.claude/skills`). Idempotent; tags each `(vendored)`/`(local)`; skips non-symlink conflicts. |
+| `skillsync status [--offline]` | Per skill: origin (`vendored`/`local`), short `synced_sha`, upstream-ahead, `SKILL.md`-vs-`.generated` drift, and link state. |
 | `skillsync validate <name>` | Validate a skill's on-disk `SKILL.md` (frontmatter, `name`==dir, size, referenced files). |
 | `skillsync detect` | Detect upstream changes per skill and print a name → kind table. |
 
@@ -108,7 +108,32 @@ sources:
 ```
 
 `skillsync add <repo> <path> --dest skills/aily` records the `dest` on the new pin for you.
-`status` and `link` read the configured `dest`, so skills are found wherever they live.
+`status` and `link` discover skills by walking `skills/` (see below), so a skill is found
+wherever it lives regardless of its `dest`.
+
+### Your own (local) skills
+
+Not every skill has to come from upstream. A **local skill** is any folder under `skills/`
+with a `SKILL.md` that isn't tracked in `sources.yaml` — hand-written here, no mirror, no pin.
+
+`link` and `status` enumerate skills from the **filesystem**, not from `sources.yaml`, so a
+local skill needs **no registration**: create `skills/<category>/<name>/SKILL.md`, run
+`skillsync link`, and it's symlinked like any vendored skill. Both commands tag each skill by
+origin so the two never get confused:
+
+```
+$ skillsync link
+taste-skill           unchanged  (vendored)
+vendor-remote-skills  create     (local)
+
+$ skillsync status --offline
+taste-skill           vendored  06d6028  upstream=?  clean  linked
+vendor-remote-skills  local     -------  upstream=?  clean  linked
+```
+
+`sync`/`regen`/`detect` only ever touch *vendored* skills (they need a pin and an upstream),
+so they leave local skills alone. A skill folder is the shallowest dir on a path that has a
+`SKILL.md`; its subtree (bundled sub-skills, `.upstream/`, `.generated/`) is not re-scanned.
 
 ### Cost framing
 
@@ -143,8 +168,11 @@ prompt stays a discrete argv element (no shell interpolation). The deterministic
 Personal use via symlink into the native skills dir:
 
 ```sh
-skillsync link    # skills/<name> -> ~/.claude/skills/<name>
+skillsync link    # every skills/**/<name>/ (vendored + local) -> ~/.claude/skills/<name>
 ```
+
+`link` walks the whole `skills/` tree, so it picks up vendored and local skills in one pass.
+Re-run it after adding any new skill (it's idempotent — unchanged links are left alone).
 
 ## Architecture
 

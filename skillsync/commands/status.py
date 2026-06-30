@@ -1,14 +1,17 @@
 """STATUS report — per-skill sync/drift/link state.
 
 `gather_status` builds one `SkillStatus` row per on-disk skill folder under
-`skills/`, combining four independent, DETERMINISTIC signals (no LLM):
+`skills/` (every folder with a `SKILL.md`, vendored or local), combining
+independent, DETERMINISTIC signals (no LLM):
 
+- **origin** — `vendored` (the folder has a pin in `sources.yaml`) or `local`
+  (hand-written, no upstream);
 - **synced_sha** — the short SHA the skill is pinned at in `sources.yaml` (`None`
-  when the folder is present but unpinned);
+  for a local skill, or a vendored one with no recorded sha);
 - **upstream_ahead** — whether the pinned ref has commits past `synced_sha`, via the
   injected `GitPort`. It is OPTIONAL and OFFLINE-TOLERANT: pass `git=None` to skip
   it, and any `GitError` (no network, unknown ref) degrades the field to `None`
-  rather than failing the whole report;
+  rather than failing the whole report; always `None` for a local skill;
 - **drift** — whether the committed `SKILL.md` differs from its `.generated`
   snapshot (a hand-edit), reusing the reconcile stage's `detect_drift`;
 - **linked** — whether `<target_dir>/<name>` is a symlink resolving to this skill
@@ -20,9 +23,9 @@ The CLI assembles the real `GitCli` (or `None` when offline) and prints the rows
 from dataclasses import dataclass
 from pathlib import Path
 
-from skillsync.commands.link import _plan
-from skillsync.config import Config, SkillPin, skill_dest
-from skillsync.layout import SkillLayout, read_skill
+from skillsync.commands.link import Origin, _plan
+from skillsync.config import Config, SkillPin
+from skillsync.layout import SkillLayout, discover_skills, pin_index, read_skill
 from skillsync.ports.git import GitError, GitPort
 from skillsync.stages.reconcile import detect_drift
 
@@ -34,13 +37,15 @@ _SHORT_SHA_LEN = 7
 class SkillStatus:
     """The status report row for one skill folder.
 
-    `synced_sha` is the short pinned SHA (`None` if unpinned); `upstream_ahead` is
-    True/False from the git port or `None` when undetermined (offline / git error /
-    no pin); `drift` is True when SKILL.md was hand-edited away from its snapshot;
-    `linked` is True when the skill is symlinked into the target skills dir.
+    `origin` is `vendored` or `local`; `synced_sha` is the short pinned SHA (`None`
+    if local/unpinned); `upstream_ahead` is True/False from the git port or `None`
+    when undetermined (offline / git error / local / no pin); `drift` is True when
+    SKILL.md was hand-edited away from its snapshot; `linked` is True when the skill
+    is symlinked into the target skills dir.
     """
 
     name: str
+    origin: Origin
     synced_sha: str | None
     upstream_ahead: bool | None
     drift: bool
@@ -56,44 +61,48 @@ def gather_status(
 ) -> list[SkillStatus]:
     """Build a status row for every skill folder under `root/skills/`.
 
-    `config` is the source of truth for which skills exist and where each lives
-    (its `dest`); a row is produced per pinned skill. `git=None` skips the (online)
-    upstream-ahead probe. `target_dir` is the skills dir the link state is checked
-    against.
+    Skills are enumerated from the FILESYSTEM (`discover_skills`), so hand-written
+    local skills appear alongside vendored ones. Each row is joined against
+    `sources.yaml` to recover its pin (sha, ref, accept rules) when vendored; a row
+    with no pin is `local`. `git=None` skips the (online) upstream-ahead probe.
+    `target_dir` is the skills dir the link state is checked against.
     """
-    return [
-        _status_one(
-            _PinContext(source.repo, source.ref, pin, skill_dest(source, pin)),
-            root,
-            git,
-            target_dir,
+    pins = pin_index(config, root)
+    rows: list[SkillStatus] = []
+    for layout in discover_skills(root):
+        match = pins.get(layout.root.resolve())
+        context = (
+            _PinContext(match[0].repo, match[0].ref, match[1]) if match else None
         )
-        for source in config.sources
-        for pin in source.skills
-    ]
+        rows.append(_status_one(layout, context, git, target_dir))
+    return rows
 
 
 @dataclass(frozen=True)
 class _PinContext:
-    """The `sources.yaml` context for one pinned skill: repo, ref, pin, and dest."""
+    """The `sources.yaml` context for one pinned skill: repo, ref, and pin."""
 
     repo: str
     ref: str
     pin: SkillPin
-    dest: str
 
 
 def _status_one(
-    context: _PinContext,
-    root: Path,
+    layout: SkillLayout,
+    context: "_PinContext | None",
     git: GitPort | None,
     target_dir: Path,
 ) -> SkillStatus:
-    """Assemble the four status signals for a single pinned skill."""
-    layout = SkillLayout.resolve(root, context.pin.path, dest=context.dest)
+    """Assemble the status signals for one on-disk skill (vendored or local).
+
+    `context` is its `sources.yaml` pin when vendored, or `None` when local — a
+    local skill reports `origin='local'`, no sha, and no upstream-ahead.
+    """
+    pin = context.pin if context else None
     return SkillStatus(
         name=layout.name,
-        synced_sha=_short(context.pin.synced_sha),
+        origin="vendored" if context else "local",
+        synced_sha=_short(pin.synced_sha) if pin else None,
         upstream_ahead=_upstream_ahead(context, git),
         drift=detect_drift(read_skill(layout)) is not None,
         linked=_is_linked(layout, target_dir),

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from skillsync.config import Config
+    from skillsync.config import Config, SkillPin, Source
 
 
 @dataclass(frozen=True)
@@ -168,33 +168,60 @@ def read_skill(layout: SkillLayout) -> SkillFiles:
 
 
 def discover_skills(repo_root: Path) -> list[SkillLayout]:
-    """Return a layout for each skill folder under `skills/`, sorted by name.
+    """Return a layout for every skill folder under `skills/`, sorted by name.
 
-    A filesystem scan of the default `skills/` dir only. With configurable `dest`
-    dirs a skill can live elsewhere, so config-driven callers should prefer
-    `layouts_from_config`; this remains for the default-layout case.
+    A filesystem scan: a skill folder is the SHALLOWEST directory on any path that
+    contains a `SKILL.md`. Categories are walked through (so `skills/ui/taste/<name>`
+    is found, not just flat `skills/<name>`), but once a folder is identified as a
+    skill its subtree is NOT descended — so a skill's bundled reference SKILL.md
+    files and its `.upstream`/`.generated` internals never register as extra skills.
+
+    This is the source of truth for which skills EXIST on disk — vendored and
+    hand-written alike — independent of `sources.yaml`. Callers that need a skill's
+    pin (sync sha, accept rules) join against the config separately.
     """
     skills_dir = repo_root / "skills"
     if not skills_dir.is_dir():
         return []
-    return [
-        SkillLayout.resolve(repo_root, child.name)
-        for child in sorted(skills_dir.iterdir(), key=lambda p: p.name)
-        if child.is_dir()
-    ]
+
+    layouts: list[SkillLayout] = []
+    _collect_skills(repo_root, skills_dir, layouts)
+    return sorted(layouts, key=lambda layout: layout.name)
 
 
-def layouts_from_config(config: "Config", repo_root: Path) -> list[SkillLayout]:
-    """Return a layout for every pinned skill, resolved under its effective `dest`.
+def _collect_skills(repo_root: Path, folder: Path, out: list[SkillLayout]) -> None:
+    """Append `folder` as a skill if it has a SKILL.md, else recurse into its subdirs.
 
-    The config is the source of truth for where each skill is stored, so this is
-    the dest-aware replacement for `discover_skills` in commands that already load
-    the config (e.g. `link`, `status`). Order follows config order.
+    Top-down with pruning: a directory holding a `SKILL.md` IS a skill and its
+    subtree is left alone; otherwise it is a category dir and its children are walked.
+    """
+    if (folder / "SKILL.md").is_file():
+        dest = folder.parent.relative_to(repo_root).as_posix()
+        out.append(SkillLayout.resolve(repo_root, folder.name, dest=dest))
+        return
+    for child in sorted(folder.iterdir(), key=lambda p: p.name):
+        if child.is_dir():
+            _collect_skills(repo_root, child, out)
+
+
+def pin_index(
+    config: "Config | None", repo_root: Path
+) -> dict[Path, "tuple[Source, SkillPin]"]:
+    """Map each pinned skill's resolved folder path to its `(Source, SkillPin)`.
+
+    The join key between a disk-discovered skill and its `sources.yaml` pin: a
+    discovered layout whose resolved `root` is in this index is *vendored* (and
+    carries sync/accept metadata); one that is absent is *local* (hand-written, no
+    upstream). Keying on the resolved path — not the bare name — keeps two skills
+    that share a name across categories distinct. Returns `{}` when `config` is None.
     """
     from skillsync.config import skill_dest
 
-    return [
-        SkillLayout.resolve(repo_root, pin.path, dest=skill_dest(source, pin))
-        for source in config.sources
-        for pin in source.skills
-    ]
+    if config is None:
+        return {}
+    index: dict[Path, tuple[Source, SkillPin]] = {}
+    for source in config.sources:
+        for pin in source.skills:
+            layout = SkillLayout.resolve(repo_root, pin.path, dest=skill_dest(source, pin))
+            index[layout.root.resolve()] = (source, pin)
+    return index
