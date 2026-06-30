@@ -5,6 +5,7 @@ Engineering workflow skills vendored verbatim from several upstreams:
 - [`mattpocock/skills`](https://github.com/mattpocock/skills) (`skills/engineering/`, synced at `6eeb81b`)
 - [`multica-ai/andrej-karpathy-skills`](https://github.com/multica-ai/andrej-karpathy-skills) (synced at `2c60614`) — `karpathy-guidelines`
 - [`anthropics/skills`](https://github.com/anthropics/skills) (synced at `3541475`) — `mcp-builder`, `webapp-testing`, `skill-creator`
+- Personal `git-flow` plugin — `ship`
 
 These cover the build loop: design, plan-to-issues, implement, test, diagnose, build MCP
 servers / skills, and the behavioral guidelines that keep changes surgical.
@@ -24,6 +25,7 @@ servers / skills, and the behavioral guidelines that keep changes surgical.
 | `mcp-builder` | Build high-quality MCP servers (Python FastMCP or Node/TypeScript SDK). *(anthropics)* |
 | `prototype` | Build a throwaway prototype — runnable terminal app or toggleable UI variations. |
 | `resolving-merge-conflicts` | Resolve an in-progress git merge/rebase conflict. |
+| `ship` | Commit, push, and open a GitHub PR using conventional commits and a standard branch flow. |
 | `setup-matt-pocock-skills` | One-time repo setup for the mattpocock skills (issue tracker, triage labels, domain docs). |
 | `skill-creator` | Create/edit skills, run evals, benchmark performance, optimize descriptions. *(anthropics)* |
 | `tdd` | Test-driven development (red-green-refactor, integration tests). |
