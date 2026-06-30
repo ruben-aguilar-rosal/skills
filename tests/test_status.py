@@ -153,6 +153,66 @@ def test_status_empty_repo_yields_no_rows(tmp_path: Path) -> None:
     assert rows == []
 
 
+class _CountingGit(FakeGit):
+    """A FakeGit that records every `remote_head` call, to assert dedup."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.remote_head_calls: list[tuple[str, str]] = []
+
+    def remote_head(self, repo: str, ref: str) -> str:
+        self.remote_head_calls.append((repo, ref))
+        return super().remote_head(repo, ref)
+
+
+def test_status_resolves_each_repo_head_once(tmp_path: Path) -> None:
+    """Many pins over one (repo, ref) trigger a single upstream probe, not one per pin."""
+    for name in ("a", "b", "c"):
+        write_text(tmp_path / "skills" / name / "SKILL.md", "x\n")
+    git = _CountingGit()
+    git.add_commit("sha1", {"skills/a/SKILL.md": "x\n"})
+    git.set_ref("main", "sha1")
+    config = Config(
+        sources=[
+            Source(
+                repo="owner/repo",
+                ref="main",
+                skills=[
+                    SkillPin(path="skills/a", synced_sha="sha1"),
+                    SkillPin(path="skills/b", synced_sha="sha1"),
+                    SkillPin(path="skills/c", synced_sha="sha1"),
+                ],
+            )
+        ]
+    )
+
+    rows = gather_status(config, tmp_path, git=git, target_dir=tmp_path / "links")
+
+    assert len(rows) == 3
+    assert all(r.upstream_ahead is False for r in rows)
+    # Three pins, one (repo, ref) — exactly one network probe.
+    assert git.remote_head_calls == [("owner/repo", "main")]
+
+
+def test_status_uses_remote_head_not_mirror(tmp_path: Path) -> None:
+    """The upstream probe goes through the no-fetch `remote_head`, never `mirror`."""
+    write_text(tmp_path / "skills" / "demo" / "SKILL.md", "x\n")
+
+    class _NoMirrorGit(_CountingGit):
+        def mirror(self, repo: str, ref: str):  # pragma: no cover - must not be hit
+            raise AssertionError("status must not call mirror() for the upstream probe")
+
+    git = _NoMirrorGit()
+    git.add_commit("sha1", {"skills/demo/SKILL.md": "x\n"})
+    git.set_ref("main", "sha1")
+    config = _config("demo", "sha1")
+
+    [row] = gather_status(config, tmp_path, git=git, target_dir=tmp_path / "links")
+
+    assert row.upstream_ahead is False
+    assert git.remote_head_calls == [("owner/repo", "main")]
+
+
 def test_status_includes_local_skill_absent_from_config(tmp_path: Path) -> None:
     """A hand-written skill with no pin appears as `local`, no sha, no upstream."""
     write_text(tmp_path / "skills" / "meta" / "mine" / "SKILL.md", "x\n")

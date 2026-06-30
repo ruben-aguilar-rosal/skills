@@ -75,19 +75,33 @@ def write_text(path: Path, text: str) -> None:
     path.write_text(text)
 
 
-def mirror_files(files: dict[str, str], dest_dir: Path) -> None:
+def write_file(path: Path, content: str | bytes) -> None:
+    """Write `content` to `path` (text or raw bytes), creating parent dirs as needed.
+
+    The binary-safe sibling of `write_text`: an upstream subtree may ship binary
+    aux files (fonts, images, archives), which arrive as `bytes`.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if isinstance(content, bytes):
+        path.write_bytes(content)
+    else:
+        path.write_text(content)
+
+
+def mirror_files(files: dict[str, str | bytes], dest_dir: Path) -> None:
     """Replace `dest_dir` with exactly `files` (relative path -> content).
 
     Stale files and now-empty directories left by a previous mirror are removed,
-    so the destination is an exact image of the new snapshot.
+    so the destination is an exact image of the new snapshot. Content may be text
+    or raw `bytes` (binary blobs are written verbatim).
     """
     if dest_dir.exists():
         shutil.rmtree(dest_dir)
     for rel_path, content in files.items():
-        write_text(dest_dir / rel_path, content)
+        write_file(dest_dir / rel_path, content)
 
 
-def write_aux_files(layout: "SkillLayout", upstream_files: dict[str, str]) -> None:
+def write_aux_files(layout: "SkillLayout", upstream_files: dict[str, str | bytes]) -> None:
     """Lay a skill's ship-along files (everything but SKILL.md) into the skill root.
 
     The committed/generated `SKILL.md` is owned by the adapt/vendor step; every OTHER
@@ -104,7 +118,7 @@ def write_aux_files(layout: "SkillLayout", upstream_files: dict[str, str]) -> No
     for stale in _stale_aux_paths(layout, set(desired)):
         stale.unlink()
     for rel_path, content in desired.items():
-        write_text(layout.root / rel_path, content)
+        write_file(layout.root / rel_path, content)
     _prune_empty_dirs(layout)
 
 
@@ -141,20 +155,26 @@ def _prune_empty_dirs(layout: "SkillLayout") -> None:
             path.rmdir()
 
 
-def read_tree(directory: Path) -> dict[str, str]:
+def read_tree(directory: Path) -> dict[str, str | bytes]:
     """Return `{relative-path: content}` for every file under `directory`.
 
     The inverse of `mirror_files`: it reads a previously-mirrored upstream subtree
     back off disk for the regen/reprofile commands, which regenerate from the
-    current on-disk mirror rather than re-pulling upstream. Returns `{}` when the
-    directory is absent.
+    current on-disk mirror rather than re-pulling upstream. Text files come back as
+    `str`; non-UTF-8 files (binary aux assets) come back as `bytes`. Returns `{}`
+    when the directory is absent.
     """
     if not directory.is_dir():
         return {}
-    files: dict[str, str] = {}
+    files: dict[str, str | bytes] = {}
     for path in sorted(directory.rglob("*")):
         if path.is_file():
-            files[path.relative_to(directory).as_posix()] = path.read_text()
+            rel = path.relative_to(directory).as_posix()
+            raw = path.read_bytes()
+            try:
+                files[rel] = raw.decode("utf-8")
+            except UnicodeDecodeError:
+                files[rel] = raw
     return files
 
 

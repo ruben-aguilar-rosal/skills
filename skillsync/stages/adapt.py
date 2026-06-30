@@ -110,7 +110,7 @@ class AdaptResult:
 def adapt(
     layout: SkillLayout,
     changeset: ChangeSet,
-    new_upstream_files: dict[str, str],
+    new_upstream_files: dict[str, str | bytes],
     adaptation_text: str,
     llm: LLMPort,
     *,
@@ -160,8 +160,13 @@ def _complete(llm: LLMPort, prompt: str, model: str) -> str:
     return result.json["skill_md"]
 
 
-def _render_upstream(files: dict[str, str]) -> str:
-    """Render upstream files as deterministic `### path` headers plus content blocks."""
+def _render_upstream(files: dict[str, str | bytes]) -> str:
+    """Render upstream files as deterministic `### path` headers plus content blocks.
+
+    Binary aux assets carry no adaptable text, so they render as a placeholder line
+    rather than their raw bytes.
+    """
     return "\n".join(
-        f"### {path}\n{content}" for path, content in sorted(files.items())
+        f"### {path}\n{'<binary file omitted>' if isinstance(content, bytes) else content}"
+        for path, content in sorted(files.items())
     )

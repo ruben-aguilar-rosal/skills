@@ -105,21 +105,26 @@ class GateResult:
 
 def run_gate(
     changeset: ChangeSet,
-    files: dict[str, str],
+    files: dict[str, str | bytes],
     *,
     max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
 ) -> GateResult:
     """Run all deterministic security checks over `files`, returning a `GateResult`.
 
     `changeset` identifies the skill under scan (its name/subtree label findings);
-    `files` maps each subtree-relative path to its content. `passed` is true iff no
-    finding has `fail` severity.
+    `files` maps each subtree-relative path to its content (text, or raw `bytes`
+    for binary aux assets). `passed` is true iff no finding has `fail` severity.
     """
     findings: list[Finding] = []
     commands: list[str] = []
     urls: set[str] = set()
 
     for rel_path, content in files.items():
+        if isinstance(content, bytes):
+            # Binary aux asset (font, image, archive): only the size cap applies;
+            # the text scans (commands, URLs, secrets) have nothing to match on.
+            findings.extend(_check_size(rel_path, content, max_file_bytes))
+            continue
         findings.extend(_check_size(rel_path, content, max_file_bytes))
         file_commands = _extract_commands(content)
         commands.extend(file_commands)
@@ -138,9 +143,9 @@ def run_gate(
     )
 
 
-def _check_size(rel_path: str, content: str, max_file_bytes: int) -> list[Finding]:
-    """Flag a file whose UTF-8 byte length exceeds the configured cap as failing."""
-    size = len(content.encode("utf-8"))
+def _check_size(rel_path: str, content: str | bytes, max_file_bytes: int) -> list[Finding]:
+    """Flag a file whose byte length exceeds the configured cap as failing."""
+    size = len(content if isinstance(content, bytes) else content.encode("utf-8"))
     if size <= max_file_bytes:
         return []
     return [
@@ -153,7 +158,7 @@ def _check_size(rel_path: str, content: str, max_file_bytes: int) -> list[Findin
     ]
 
 
-def _check_frontmatter(files: dict[str, str]) -> list[Finding]:
+def _check_frontmatter(files: dict[str, str | bytes]) -> list[Finding]:
     """Verify SKILL.md frontmatter parses as YAML and has `name` + `description`."""
     skill_md = _find_skill_md(files)
     if skill_md is None:
@@ -274,10 +279,15 @@ def _scan_secrets(rel_path: str, content: str) -> list[Finding]:
     return findings
 
 
-def _find_skill_md(files: dict[str, str]) -> tuple[str, str] | None:
-    """Return the (path, content) of the skill's SKILL.md, or None if absent."""
+def _find_skill_md(files: dict[str, str | bytes]) -> tuple[str, str] | None:
+    """Return the (path, content) of the skill's SKILL.md, or None if absent.
+
+    A SKILL.md is always text; a `bytes` value at that path is malformed and skipped.
+    """
     for rel_path, content in files.items():
         if rel_path == "SKILL.md" or rel_path.endswith("/SKILL.md"):
+            if isinstance(content, bytes):
+                return None
             return rel_path, content
     return None
 

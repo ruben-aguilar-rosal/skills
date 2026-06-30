@@ -7,12 +7,30 @@ string. `open_pr` invokes `gh pr create` and returns the PR URL it prints.
 
 import json
 import subprocess
+import tempfile
 from collections.abc import Callable
+from contextlib import contextmanager
 from pathlib import Path
 
 from skillsync.ports.gh import GhError
 
 _DEFAULT_TIMEOUT = 120
+
+
+@contextmanager
+def _body_file(body: str):
+    """Yield the path to a temp file holding `body`, removed on exit.
+
+    `gh pr/issue create` accepts `--body-file` to read the body off disk; passing the
+    body this way (instead of inline `--body`) keeps a large body — e.g. a vendored
+    diff spanning dozens of schema files — from overflowing the command-line argv cap.
+    """
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".md", prefix="skillsync-body-", delete=True
+    ) as handle:
+        handle.write(body)
+        handle.flush()
+        yield handle.name
 
 # A subprocess runner: takes argv + cwd + timeout, returns the completed process.
 # The default shells out for real; tests inject a fake to avoid touching git/gh.
@@ -79,12 +97,11 @@ class GhCli:
             branch,
             "--title",
             title,
-            "--body",
-            body,
         ]
         for label in labels:
             argv += ["--label", label]
-        return self._run(root, *argv).strip()
+        with _body_file(body) as body_path:
+            return self._run(root, *argv, "--body-file", body_path).strip()
 
     def open_issue(
         self, root: Path, title: str, body: str, labels: list[str]
@@ -94,10 +111,11 @@ class GhCli:
         Ensures every label exists first, for the same reason as `open_pr`.
         """
         self._ensure_labels(root, labels)
-        argv = ["gh", "issue", "create", "--title", title, "--body", body]
+        argv = ["gh", "issue", "create", "--title", title]
         for label in labels:
             argv += ["--label", label]
-        return self._run(root, *argv).strip()
+        with _body_file(body) as body_path:
+            return self._run(root, *argv, "--body-file", body_path).strip()
 
     def _ensure_labels(self, root: Path, labels: list[str]) -> None:
         """Create each label if missing; `gh label create --force` is idempotent.

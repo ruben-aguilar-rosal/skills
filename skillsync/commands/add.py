@@ -212,7 +212,7 @@ def _onboard_vendored(
     pin: SkillPin,
     layout: SkillLayout,
     changeset: ChangeSet,
-    new_files: dict[str, str],
+    new_files: dict[str, str | bytes],
     gate: GateResult,
     *,
     gh: GhPort,
@@ -253,7 +253,7 @@ def _onboard_adapted(
     pin: SkillPin,
     layout: SkillLayout,
     changeset: ChangeSet,
-    new_files: dict[str, str],
+    new_files: dict[str, str | bytes],
     gate: GateResult,
     *,
     gh: GhPort,
@@ -359,7 +359,7 @@ def _source(config: Config, repo: str) -> Source:
 
 
 def _draft_adaptation(
-    root: Path, new_files: dict[str, str], llm: LLMPort, model: str
+    root: Path, new_files: dict[str, str | bytes], llm: LLMPort, model: str
 ) -> str:
     """Draft a self-contained adaptation.md from profile.md + the upstream SKILL.md."""
     profile = load_profile(root / "profile.md")
@@ -371,17 +371,20 @@ def _draft_adaptation(
     return result.json["adaptation_md"]
 
 
-def _find_skill_md(files: dict[str, str]) -> str | None:
-    """Return the upstream SKILL.md content, or None if the subtree has none."""
+def _find_skill_md(files: dict[str, str | bytes]) -> str | None:
+    """Return the upstream SKILL.md content, or None if the subtree has none.
+
+    A SKILL.md is always text; a `bytes` value at that path is malformed and skipped.
+    """
     for rel_path, content in files.items():
         if rel_path == "SKILL.md" or rel_path.endswith("/SKILL.md"):
-            return content
+            return None if isinstance(content, bytes) else content
     return None
 
 
 def _write_artifacts(
     layout: SkillLayout,
-    new_files: dict[str, str],
+    new_files: dict[str, str | bytes],
     adapt_result: AdaptResult,
     adaptation_text: str,
 ) -> None:

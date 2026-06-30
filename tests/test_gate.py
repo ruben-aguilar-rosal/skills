@@ -182,3 +182,24 @@ def test_finding_is_dataclass_with_severity() -> None:
     assert finding.severity
     assert finding.detail
     assert finding.file == "big.txt"
+
+
+def test_binary_aux_file_does_not_crash_and_passes() -> None:
+    """A non-UTF-8 aux blob (font/image) is tolerated: text scans skip it, gate passes."""
+    files = {
+        "SKILL.md": CLEAN_SKILL_MD,
+        "fonts/x.ttf": b"\x00\x89\x91\xff",  # not valid UTF-8
+    }
+    result = run_gate(_changeset(), files)
+
+    assert result.passed is True
+
+
+def test_binary_aux_file_still_enforces_size_cap() -> None:
+    """The size cap applies to binary content too (by raw byte length)."""
+    files = {"SKILL.md": CLEAN_SKILL_MD, "big.bin": b"\xff" * 200}
+    result = run_gate(_changeset(), files, max_file_bytes=100)
+
+    oversize = [f for f in result.findings if f.kind == "oversize"]
+    assert any(f.file == "big.bin" for f in oversize)
+    assert result.passed is False

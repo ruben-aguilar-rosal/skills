@@ -289,7 +289,7 @@ def _sync_one(
 
 def _write_artifacts(
     layout: SkillLayout,
-    new_files: dict[str, str],
+    new_files: dict[str, str | bytes],
     adapt_result: AdaptResult,
     adaptation_text: str,
     drift: str | None,

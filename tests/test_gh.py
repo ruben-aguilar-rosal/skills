@@ -112,6 +112,25 @@ def test_gh_cli_open_issue_ensures_labels_first() -> None:
     assert [a[3] for a in label_calls] == ["skillsync", "discovery"]
 
 
+def test_gh_cli_passes_large_body_via_file_not_argv() -> None:
+    """A large body goes through `--body-file` (a real path), never inline `--body`.
+
+    Passing a big body (e.g. a vendored diff over dozens of schema files) inline would
+    overflow the argv cap; the body-file indirection is what keeps `gh` from crashing.
+    """
+    big_body = "x" * 200_000
+    runner = _ScriptedRunner({"gh issue": _ok("https://github.com/o/r/issues/9\n")})
+
+    GhCli(runner=runner).open_issue(ROOT, "t", big_body, ["skillsync"])
+
+    issue_argv = next(a for a in runner.calls if a[:2] == ["gh", "issue"])
+    assert "--body" not in issue_argv  # never the inline form
+    assert "--body-file" in issue_argv
+    body_path = issue_argv[issue_argv.index("--body-file") + 1]
+    assert big_body not in issue_argv  # the body is not on the command line
+    assert body_path.endswith(".md")
+
+
 def test_gh_cli_raises_gh_error_on_nonzero_exit() -> None:
     """A non-zero exit from a git/gh command surfaces as a typed GhError."""
     runner = _ScriptedRunner(
