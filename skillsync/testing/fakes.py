@@ -27,10 +27,10 @@ class FakeGit:
     def __init__(self) -> None:
         """Start with an empty history, no commits, and no refs."""
         self._history: list[str] = []
-        self._snapshots: dict[str, dict[str, str]] = {}
+        self._snapshots: dict[str, dict[str, str | bytes]] = {}
         self._refs: dict[str, str] = {}
 
-    def add_commit(self, sha: str, files: dict[str, str]) -> None:
+    def add_commit(self, sha: str, files: dict[str, str | bytes]) -> None:
         """Append a commit `sha` with a full file snapshot to the linear history."""
         if sha in self._snapshots:
             raise ValueError(f"duplicate commit sha: {sha}")
@@ -47,6 +47,10 @@ class FakeGit:
         """Return a synthetic checkout path; no I/O is performed."""
         self.head_sha(Path("/fake"), ref)  # validate the ref exists
         return Path("/fake/mirrors") / repo.replace("/", "__")
+
+    def remote_head(self, repo: str, ref: str) -> str:
+        """Resolve `ref` to a SHA without 'fetching' — same source as `head_sha`."""
+        return self._resolve(ref)
 
     def head_sha(self, repo_path: Path, ref: str) -> str:
         """Resolve `ref` (a ref name or a known sha) to a commit SHA."""
@@ -86,7 +90,7 @@ class FakeGit:
 
     def read_subtree_files(
         self, repo_path: Path, ref: str, subtree: str
-    ) -> dict[str, str]:
+    ) -> dict[str, str | bytes]:
         """Return `{subtree-relative-path: content}` for files under `subtree` at `ref`."""
         return self._subtree_files(self._resolve(ref), subtree)
 
@@ -98,7 +102,7 @@ class FakeGit:
             return ref
         raise GitError(f"unknown ref or sha: {ref}")
 
-    def _subtree_files(self, sha: str, subtree: str) -> dict[str, str]:
+    def _subtree_files(self, sha: str, subtree: str) -> dict[str, str | bytes]:
         """Return `{subtree-relative-path: content}` for files under `subtree` at `sha`."""
         prefix = subtree.rstrip("/") + "/"
         return {

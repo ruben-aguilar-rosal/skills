@@ -11,9 +11,14 @@ from skillsync.layout import (
     mirror_files,
     read_skill,
     read_text,
+    read_tree,
     write_aux_files,
+    write_file,
     write_text,
 )
+
+# A 2-byte sequence that is not valid UTF-8 — stands in for a font/image/archive blob.
+_BINARY_BLOB = b"\x89\x91"
 
 
 def test_layout_resolves_paths_under_skills_dir(tmp_path: Path) -> None:
@@ -68,6 +73,45 @@ def test_mirror_files_replaces_stale_contents(tmp_path: Path) -> None:
     assert read_text(dest / "SKILL.md") == "new"
     assert read_text(dest / "scripts" / "run.sh") is None
     assert not (dest / "scripts").exists()
+
+
+def test_write_file_writes_bytes_verbatim(tmp_path: Path) -> None:
+    """`write_file` writes raw bytes without decoding, creating parent dirs."""
+    target = tmp_path / "fonts" / "x.ttf"
+
+    write_file(target, _BINARY_BLOB)
+
+    assert target.read_bytes() == _BINARY_BLOB
+
+
+def test_mirror_files_handles_binary_content(tmp_path: Path) -> None:
+    """`mirror_files` writes binary blobs verbatim alongside text files."""
+    dest = tmp_path / "upstream"
+
+    mirror_files({"SKILL.md": "# demo\n", "fonts/x.ttf": _BINARY_BLOB}, dest)
+
+    assert read_text(dest / "SKILL.md") == "# demo\n"
+    assert (dest / "fonts" / "x.ttf").read_bytes() == _BINARY_BLOB
+
+
+def test_write_aux_files_handles_binary_content(tmp_path: Path) -> None:
+    """A binary aux asset (e.g. a font) lands beside SKILL.md byte-for-byte."""
+    layout = SkillLayout.resolve(tmp_path, "demo")
+
+    write_aux_files(layout, {"SKILL.md": "# demo\n", "fonts/x.ttf": _BINARY_BLOB})
+
+    assert (layout.root / "fonts" / "x.ttf").read_bytes() == _BINARY_BLOB
+
+
+def test_read_tree_round_trips_binary(tmp_path: Path) -> None:
+    """`read_tree` reads binary files back as bytes and text as str."""
+    dest = tmp_path / "upstream"
+    mirror_files({"SKILL.md": "# demo\n", "fonts/x.ttf": _BINARY_BLOB}, dest)
+
+    tree = read_tree(dest)
+
+    assert tree["SKILL.md"] == "# demo\n"
+    assert tree["fonts/x.ttf"] == _BINARY_BLOB
 
 
 def test_write_aux_files_copies_non_skill_md_into_root(tmp_path: Path) -> None:

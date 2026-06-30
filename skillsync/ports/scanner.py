@@ -21,7 +21,7 @@ import tempfile
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
-from skillsync.layout import write_text
+from skillsync.layout import write_file
 from skillsync.stages.detect import ChangeSet
 from skillsync.stages.gate import Finding, GateResult
 
@@ -50,7 +50,7 @@ class ScannerPort(Protocol):
 def scan_subtree(
     scanner: ScannerPort,
     changeset: ChangeSet,
-    files: dict[str, str],
+    files: dict[str, str | bytes],
     accepted: list[str] | None = None,
 ) -> GateResult:
     """Materialize `files` to a temp dir, scan it, and return the gate verdict.
@@ -70,7 +70,7 @@ def scan_subtree(
         with tempfile.TemporaryDirectory(prefix="skillsync-scan-") as tmp:
             tmp_dir = Path(tmp)
             for rel_path, content in files.items():
-                write_text(tmp_dir / rel_path, content)
+                write_file(tmp_dir / rel_path, content)
             result = scanner.scan(tmp_dir)
     except ScanError as exc:
         return _fail_safe(changeset, exc)

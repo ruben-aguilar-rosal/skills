@@ -21,6 +21,16 @@ class GitPort(Protocol):
         """Ensure a local mirror of `repo`, fetch `ref`, return the checkout path."""
         ...
 
+    def remote_head(self, repo: str, ref: str) -> str:
+        """Return the SHA `ref` resolves to on the remote, without fetching objects.
+
+        A lightweight `git ls-remote` probe: it transfers only the ref advertisement,
+        not a pack, and needs no local mirror — so a caller that only compares the
+        upstream head against a pinned SHA (e.g. the status report) can skip the cost
+        of `mirror`. Raises `GitError` if the remote is unreachable or the ref absent.
+        """
+        ...
+
     def head_sha(self, repo_path: Path, ref: str) -> str:
         """Return the commit SHA that `ref` resolves to in `repo_path`."""
         ...
@@ -45,10 +55,11 @@ class GitPort(Protocol):
 
     def read_subtree_files(
         self, repo_path: Path, ref: str, subtree: str
-    ) -> dict[str, str]:
+    ) -> dict[str, str | bytes]:
         """Return `{subtree-relative-path: content}` for every file under `subtree` at `ref`.
 
         This is the content surface the security gate scans and full-mode adapt /
-        the upstream mirror write consume.
+        the upstream mirror write consume. Text blobs are `str`; non-UTF-8 blobs
+        (binary aux assets) are `bytes`.
         """
         ...

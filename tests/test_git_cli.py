@@ -68,6 +68,20 @@ def test_head_sha_resolves_ref(two_commit_repo: Path) -> None:
     assert sha == _run_git(two_commit_repo, "rev-parse", "main")
 
 
+def test_remote_head_resolves_ref_without_fetch(two_commit_repo: Path) -> None:
+    """`remote_head` returns the ref's SHA via ls-remote against a (local) repo URL."""
+    sha = GitCli().remote_head(str(two_commit_repo), "main")
+
+    assert len(sha) == 40
+    assert sha == _run_git(two_commit_repo, "rev-parse", "main")
+
+
+def test_remote_head_raises_on_unknown_ref(two_commit_repo: Path) -> None:
+    """An absent ref surfaces as a GitError rather than a bogus SHA."""
+    with pytest.raises(GitError):
+        GitCli().remote_head(str(two_commit_repo), "no-such-branch")
+
+
 def test_is_ancestor_true_for_first_commit(two_commit_repo: Path) -> None:
     """The first commit is an ancestor of the second (HEAD)."""
     first = _run_git(two_commit_repo, "rev-parse", "HEAD~1")

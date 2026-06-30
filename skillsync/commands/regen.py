@@ -133,7 +133,7 @@ def regenerate_to_pr(
     layout: SkillLayout,
     root: Path,
     adaptation_text: str,
-    upstream_files: dict[str, str],
+    upstream_files: dict[str, str | bytes],
     *,
     llm: LLMPort,
     gh: GhPort,
@@ -190,14 +190,16 @@ def _dest_for_name(config: Config, name: str) -> str:
     return "skills"
 
 
-def _regen_changeset(layout: SkillLayout, upstream_files: dict[str, str]) -> ChangeSet:
+def _regen_changeset(layout: SkillLayout, upstream_files: dict[str, str | bytes]) -> ChangeSet:
     """Build a synthetic change set for a regeneration (no new upstream diff).
 
     The `diff` is the current on-disk upstream content, rendered so the reused PR
-    body shows reviewers exactly what the SKILL.md was regenerated from.
+    body shows reviewers exactly what the SKILL.md was regenerated from. Binary aux
+    files render as a placeholder rather than their raw bytes.
     """
     diff = "\n".join(
-        f"### {path}\n{content}" for path, content in sorted(upstream_files.items())
+        f"### {path}\n{'<binary file omitted>' if isinstance(content, bytes) else content}"
+        for path, content in sorted(upstream_files.items())
     )
     return ChangeSet(
         skill_path=f"skills/{layout.name}",
@@ -211,7 +213,7 @@ def _regen_changeset(layout: SkillLayout, upstream_files: dict[str, str]) -> Cha
 
 
 def _write_artifacts(
-    layout: SkillLayout, upstream_files: dict[str, str], adapt_result: AdaptResult
+    layout: SkillLayout, upstream_files: dict[str, str | bytes], adapt_result: AdaptResult
 ) -> None:
     """Write the regenerated SKILL.md + snapshot, re-mirror upstream, refresh aux files."""
     mirror_files(upstream_files, layout.upstream_dir)
