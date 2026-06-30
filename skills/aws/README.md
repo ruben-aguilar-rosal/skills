@@ -5,80 +5,70 @@ AWS service skills vendored verbatim from
 `f2feb06`), AWS's official Agent Toolkit — the tools, knowledge, and guardrails AI
 coding agents need to work with AWS.
 
-This is a **curated subset** (44 of ~86 upstream skills): the core services, networking,
-operations, EC2, the databases/storage we actually run, and the data-lake/analytics set.
-Niche skills were deliberately skipped (see *Not vendored* below).
+This is a **curated subset** (33 of ~86 upstream skills), trimmed to the services this
+infra/platform repo actually runs: IAM, networking, observability, EC2, RDS/Aurora
+Postgres, ElastiCache, S3, CloudFormation, serverless. Off-stack skills were deliberately
+skipped (see *Not vendored* below).
 
 ## Skills in this folder
 
-### Core (13)
+### Core (11)
 | Skill | Use it for |
 |---|---|
-| `amazon-bedrock` | Generative AI on Bedrock — Converse/InvokeModel, RAG with Knowledge Bases, agents. |
-| `aws-billing-and-cost-management` | Analyze costs, find savings, manage budgets, evaluate Savings Plans. |
-| `aws-blocks` | Build full-stack apps with AWS Blocks (Infrastructure-from-Code). |
-| `aws-cdk` | Author, deploy, troubleshoot infra with CDK (TypeScript/Python). |
-| `aws-cloudformation` | Author, validate, troubleshoot CloudFormation templates with secure defaults. |
-| `aws-containers` | Deploy/operate containers on ECS, Fargate, ECR. |
 | `aws-iam` | Verified corrections for IAM behaviors agents get wrong. |
-| `aws-messaging-and-streaming` | SQS, SNS, EventBridge, Kinesis messaging/streaming. |
+| `aws-cloudformation` | Author, validate, troubleshoot CloudFormation templates with secure defaults. |
 | `aws-observability` | CloudWatch Log Insights, metrics, alarms, Application Signals. |
-| `aws-sdk-js-v3-usage` | AWS SDK for JavaScript v3 patterns. |
-| `aws-sdk-python-usage` | AWS SDK for Python (boto3/botocore) patterns. |
+| `aws-containers` | Deploy/operate containers on ECS, Fargate, ECR. |
 | `aws-serverless` | Lambda, API Gateway, Step Functions — build/deploy/debug/optimize. |
+| `aws-billing-and-cost-management` | Analyze costs, find savings, manage budgets, evaluate Savings Plans. |
+| `aws-messaging-and-streaming` | SQS, SNS, EventBridge, Kinesis messaging/streaming. |
+| `aws-sdk-python-usage` | AWS SDK for Python (boto3/botocore) patterns. |
+| `amazon-bedrock` | Generative AI on Bedrock — Converse/InvokeModel, RAG with Knowledge Bases, agents. |
 | `signing-in-to-aws` | Get AWS credentials for CLI/SDK access (`aws login`, SSO). |
 
 ### Networking & content delivery (5)
 | Skill | Use it for |
 |---|---|
+| `creating-production-vpc-multi-az` | Production VPC with public/private subnets across AZs. |
 | `configuring-vpc-endpoints-for-private-aws-service-access` | Interface/gateway VPC endpoints via PrivateLink. |
 | `connecting-vpcs-with-peering` | VPC peering for direct private connectivity. |
-| `creating-production-vpc-multi-az` | Production VPC with public/private subnets across AZs. |
 | `enabling-lambda-vpc-internet-access` | NAT Gateway so VPC Lambdas reach the internet. |
 | `routing-traffic-with-route53-and-cloudfront` | Route 53 → CloudFront with a custom domain. |
 
 ### Operations (3)
 | Skill | Use it for |
 |---|---|
-| `setting-up-cloudtrail-multi-region` | Multi-region CloudTrail with S3 + CloudWatch Logs. |
-| `setting-up-cloudwatch-alarm-notifications` | CloudWatch alarm → SNS notification channels. |
 | `troubleshooting-application-failures` | Diagnose failing apps via CloudWatch log analysis. |
+| `setting-up-cloudwatch-alarm-notifications` | CloudWatch alarm → SNS notification channels. |
+| `setting-up-cloudtrail-multi-region` | Multi-region CloudTrail with S3 + CloudWatch Logs. |
 
 ### EC2 (3)
 | Skill | Use it for |
 |---|---|
-| `creating-ec2-image-builder-pipeline` | Build/distribute custom AMIs with Image Builder. |
-| `launching-ec2-instance-with-best-practices` | Launch EC2 with secure, cost-efficient defaults. |
 | `setting-up-ec2-instance-profiles` | Attach IAM roles to EC2 via instance profiles. |
+| `launching-ec2-instance-with-best-practices` | Launch EC2 with secure, cost-efficient defaults. |
+| `creating-ec2-image-builder-pipeline` | Build/distribute custom AMIs with Image Builder. |
 
-### Database (5)
+### Database (3)
 | Skill | Use it for |
 |---|---|
-| `amazon-aurora-mysql` | Create/modify/advise on Aurora MySQL clusters. |
-| `amazon-aurora-postgresql` | Create/modify/advise on Aurora PostgreSQL clusters. |
+| `amazon-aurora-postgresql` | Create/modify/advise on Aurora PostgreSQL clusters (pgvector, ACU sizing, upgrades). |
 | `amazon-elasticache` | Caching with ElastiCache (Valkey/Redis) — latency, read bottlenecks, throttling. |
-| `creating-amazon-aurora-db-cluster-with-instances` | Full Aurora cluster + instance provisioning. |
 | `exporting-rds-to-s3` | Export RDS/Aurora snapshots to S3 as Parquet. |
 
 ### Storage (5)
 | Skill | Use it for |
 |---|---|
-| `creating-data-lake-table` | Managed Iceberg tables via Amazon S3 Tables. |
 | `securing-s3-buckets` | Secure S3 buckets — access control, encryption, best practices. |
-| `storing-and-querying-vectors` | Vector embeddings with Amazon S3 Vectors. |
-| `troubleshooting-efs` | Diagnose EFS mount failures / NFS timeouts. |
 | `troubleshooting-s3-files` | Diagnose S3 mount/access issues. |
+| `troubleshooting-efs` | Diagnose EFS mount failures / NFS timeouts. |
+| `creating-data-lake-table` | Managed Iceberg tables via Amazon S3 Tables. |
+| `storing-and-querying-vectors` | Vector embeddings with Amazon S3 Vectors. |
 
-### Analytics & data lake (8)
+### Analytics & data lake (2)
 | Skill | Use it for |
 |---|---|
-| `amazon-opensearch-service` | OpenSearch Service/Serverless — migration, ops, search. |
-| `connecting-to-data-source` | AWS Glue connections to JDBC databases. |
 | `exploring-data-catalog` | Inventory/audit the Glue Data Catalog. |
-| `finding-data-lake-assets` | Resolve data-lake asset references across Glue/S3. |
-| `ingesting-into-data-lake` | Import data into the data lake (S3, JDBC, uploads). |
-| `managing-amazon-msk` | Operate Amazon MSK provisioned clusters. |
-| `migrate-to-msk` | Migrate self-managed Kafka to MSK Express. |
 | `querying-data-lake` | Athena SQL across Glue/federated catalogs. |
 
 ### System tables — querying (2)
@@ -96,8 +86,18 @@ Niche skills were deliberately skipped (see *Not vendored* below).
 
 ## Not vendored
 
-Skipped as out of scope / niche: `rds-db2` (ships `curl … | bash` from a URL shortener),
-`amazon-keyspaces`, `amazon-documentdb`, `aws-sdk-swift-usage`,
-`developing-applications-on-managed-service-for-apache-flink`, `aws-cleanrooms`,
-`querying-aws-sagemaker-catalog`. The `plugins/` tree (AI-agent-building and
-DevSecOps-agent sets) was also left out of this pass.
+Skipped as off-stack or niche for this repo:
+
+- **Security-flagged:** `rds-db2` — ships `curl … | bash` from a URL shortener (the only
+  genuine security smell in the toolkit; SC2/TM1/TM2).
+- **Wrong engine/runtime:** `amazon-keyspaces` (Cassandra), `amazon-documentdb` (MongoDB),
+  `amazon-aurora-mysql`, `creating-amazon-aurora-db-cluster-with-instances` (we run Aurora
+  Postgres), `aws-sdk-swift-usage`, `aws-sdk-js-v3-usage` (we write Python).
+- **Not our IaC / app model:** `aws-cdk` (we use terragrunt), `aws-blocks`
+  (Infrastructure-from-Code framework).
+- **Data-engineering / streaming (no current use):** `amazon-opensearch-service`,
+  `developing-applications-on-managed-service-for-apache-flink`, `managing-amazon-msk`,
+  `migrate-to-msk`, `aws-cleanrooms`, `connecting-to-data-source`,
+  `finding-data-lake-assets`, `ingesting-into-data-lake`, `querying-aws-sagemaker-catalog`.
+
+The `plugins/` tree (AI-agent-building and DevSecOps-agent sets) was also left out of this pass.

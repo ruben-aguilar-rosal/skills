@@ -375,18 +375,6 @@ sources:
     hold: false
     dest: skills/aws
     accept_invalid: true
-  - path: skills/core-skills/aws-blocks
-    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
-    hold: false
-    dest: skills/aws
-    accept_invalid: true
-  - path: skills/core-skills/aws-cdk
-    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
-    hold: false
-    dest: skills/aws
-    accept_findings:
-    - TM1
-    accept_invalid: true
   - path: skills/core-skills/aws-cloudformation
     synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
     hold: false
@@ -414,13 +402,6 @@ sources:
     accept_findings:
     - TM2
     accept_invalid: true
-  - path: skills/core-skills/aws-sdk-js-v3-usage
-    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
-    hold: false
-    dest: skills/aws
-    accept_findings:
-    - PE3
-    accept_invalid: true
   - path: skills/core-skills/aws-sdk-python-usage
     synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
     hold: false
@@ -443,41 +424,7 @@ sources:
     accept_findings:
     - PE3
     accept_invalid: true
-  - path: skills/specialized-skills/analytics-skills/amazon-opensearch-service
-    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
-    hold: false
-    dest: skills/aws
-    accept_findings:
-    - P2
-    accept_invalid: true
-  - path: skills/specialized-skills/analytics-skills/connecting-to-data-source
-    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
-    hold: false
-    dest: skills/aws
-    accept_invalid: true
   - path: skills/specialized-skills/analytics-skills/exploring-data-catalog
-    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
-    hold: false
-    dest: skills/aws
-    accept_invalid: true
-  - path: skills/specialized-skills/analytics-skills/finding-data-lake-assets
-    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
-    hold: false
-    dest: skills/aws
-    accept_findings:
-    - P1
-    accept_invalid: true
-  - path: skills/specialized-skills/analytics-skills/ingesting-into-data-lake
-    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
-    hold: false
-    dest: skills/aws
-    accept_invalid: true
-  - path: skills/specialized-skills/analytics-skills/managing-amazon-msk
-    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
-    hold: false
-    dest: skills/aws
-    accept_invalid: true
-  - path: skills/specialized-skills/analytics-skills/migrate-to-msk
     synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
     hold: false
     dest: skills/aws
@@ -486,13 +433,6 @@ sources:
     synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
     hold: false
     dest: skills/aws
-    accept_invalid: true
-  - path: skills/specialized-skills/database-skills/amazon-aurora-mysql
-    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
-    hold: false
-    dest: skills/aws
-    accept_findings:
-    - TM2
     accept_invalid: true
   - path: skills/specialized-skills/database-skills/amazon-aurora-postgresql
     synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
@@ -511,11 +451,6 @@ sources:
     - PE3
     - TM1
     - TM2
-    accept_invalid: true
-  - path: skills/specialized-skills/database-skills/creating-amazon-aurora-db-cluster-with-instances
-    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
-    hold: false
-    dest: skills/aws
     accept_invalid: true
   - path: skills/specialized-skills/database-skills/exporting-rds-to-s3
     synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
