@@ -7,8 +7,8 @@ from skillsync.layout import (
     SkillFiles,
     SkillLayout,
     discover_skills,
-    layouts_from_config,
     mirror_files,
+    pin_index,
     read_skill,
     read_text,
     read_tree,
@@ -181,15 +181,41 @@ def test_read_skill_reads_present_files(tmp_path: Path) -> None:
     )
 
 
-def test_discover_skills_lists_folders_sorted(tmp_path: Path) -> None:
-    """`discover_skills` returns a layout per folder under `skills/`, sorted."""
+def test_discover_skills_lists_folders_with_skill_md_sorted(tmp_path: Path) -> None:
+    """`discover_skills` returns a layout per folder that has a SKILL.md, sorted."""
     write_text(tmp_path / "skills" / "beta" / "SKILL.md", "b")
-    write_text(tmp_path / "skills" / "alpha" / "adaptation.md", "a")
-    (tmp_path / "skills" / "alpha" / "upstream").mkdir(parents=True)
+    write_text(tmp_path / "skills" / "alpha" / "SKILL.md", "a")
+    # A folder without a SKILL.md is not a skill, even with other files present.
+    write_text(tmp_path / "skills" / "notaskill" / "adaptation.md", "x")
 
     layouts = discover_skills(tmp_path)
 
     assert [layout.name for layout in layouts] == ["alpha", "beta"]
+
+
+def test_discover_skills_recurses_into_category_subfolders(tmp_path: Path) -> None:
+    """A skill nested under a category dir (skills/ui/taste/<name>) is discovered."""
+    write_text(tmp_path / "skills" / "ui" / "taste" / "taste-skill" / "SKILL.md", "t")
+    write_text(tmp_path / "skills" / "meta" / "vendor" / "SKILL.md", "v")
+
+    layouts = discover_skills(tmp_path)
+
+    by_name = {layout.name: layout for layout in layouts}
+    assert set(by_name) == {"taste-skill", "vendor"}
+    assert by_name["taste-skill"].root == (
+        tmp_path / "skills" / "ui" / "taste" / "taste-skill"
+    )
+
+
+def test_discover_skills_ignores_internal_mirror_and_snapshot(tmp_path: Path) -> None:
+    """A SKILL.md inside .upstream/.generated does not register as its own skill."""
+    write_text(tmp_path / "skills" / "demo" / "SKILL.md", "real")
+    write_text(tmp_path / "skills" / "demo" / ".upstream" / "SKILL.md", "mirror")
+    write_text(tmp_path / "skills" / "demo" / ".generated" / "SKILL.md", "snapshot")
+
+    layouts = discover_skills(tmp_path)
+
+    assert [layout.name for layout in layouts] == ["demo"]
 
 
 def test_discover_skills_empty_when_no_skills_dir(tmp_path: Path) -> None:
@@ -205,23 +231,27 @@ def test_layout_resolve_custom_dest(tmp_path: Path) -> None:
     assert layout.skill_md_path == layout.root / "SKILL.md"
 
 
-def test_layouts_from_config_uses_dest_precedence(tmp_path: Path) -> None:
-    """`layouts_from_config` resolves each pin under its effective dest."""
+def test_pin_index_maps_resolved_folder_to_source_and_pin(tmp_path: Path) -> None:
+    """`pin_index` keys each pinned skill by its resolved folder path (dest-aware)."""
+    one = SkillPin(path="a/one", synced_sha="x")
+    two = SkillPin(path="a/two", synced_sha="y", dest="skills/aws")  # per-pin override
     config = Config(
         sources=[
             Source(
-                repo="owner/repo",
-                ref="main",
-                dest="skills/aily",
-                skills=[
-                    SkillPin(path="a/one", synced_sha="x"),
-                    SkillPin(path="a/two", synced_sha="y", dest="skills/aws"),
-                ],
+                repo="owner/repo", ref="main", dest="skills/aily", skills=[one, two]
             )
         ]
     )
 
-    layouts = layouts_from_config(config, tmp_path)
+    index = pin_index(config, tmp_path)
 
-    assert layouts[0].root == tmp_path / "skills" / "aily" / "one"
-    assert layouts[1].root == tmp_path / "skills" / "aws" / "two"
+    key_one = (tmp_path / "skills" / "aily" / "one").resolve()  # source dest
+    key_two = (tmp_path / "skills" / "aws" / "two").resolve()  # pin dest wins
+    assert index[key_one][1] is one
+    assert index[key_two][1] is two
+    assert index[key_one][0].repo == "owner/repo"
+
+
+def test_pin_index_is_empty_without_config(tmp_path: Path) -> None:
+    """`pin_index(None, ...)` is empty, so every discovered skill reads as local."""
+    assert pin_index(None, tmp_path) == {}

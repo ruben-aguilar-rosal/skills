@@ -40,6 +40,7 @@ def test_status_reports_short_sha_and_drift_offline(tmp_path: Path) -> None:
     assert [r.name for r in rows] == ["demo"]
     row = rows[0]
     assert isinstance(row, SkillStatus)
+    assert row.origin == "vendored"
     assert row.synced_sha == "abcdef1"
     assert row.drift is True
     assert row.upstream_ahead is None
@@ -210,3 +211,29 @@ def test_status_uses_remote_head_not_mirror(tmp_path: Path) -> None:
 
     assert row.upstream_ahead is False
     assert git.remote_head_calls == [("owner/repo", "main")]
+
+
+def test_status_includes_local_skill_absent_from_config(tmp_path: Path) -> None:
+    """A hand-written skill with no pin appears as `local`, no sha, no upstream."""
+    write_text(tmp_path / "skills" / "meta" / "mine" / "SKILL.md", "x\n")
+
+    [row] = gather_status(
+        Config(sources=[]), tmp_path, git=None, target_dir=tmp_path / "links"
+    )
+
+    assert row.name == "mine"
+    assert row.origin == "local"
+    assert row.synced_sha is None
+    assert row.upstream_ahead is None
+
+
+def test_status_lists_both_vendored_and_local(tmp_path: Path) -> None:
+    """Vendored and local skills are both reported, tagged by origin, sorted by name."""
+    write_text(tmp_path / "skills" / "vend" / "SKILL.md", "v\n")
+    write_text(tmp_path / "skills" / "meta" / "mine" / "SKILL.md", "m\n")
+    config = _config("vend", "abc1234")
+
+    rows = gather_status(config, tmp_path, git=None, target_dir=tmp_path / "links")
+
+    by_name = {r.name: r.origin for r in rows}
+    assert by_name == {"mine": "local", "vend": "vendored"}

@@ -96,6 +96,7 @@ def test_status_reports_sha_drift_and_link_state(tmp_path: Path) -> None:
     assert "drift" in result.stdout
     assert "beta" in result.stdout
     assert "clean" in result.stdout
+    assert "vendored" in result.stdout  # both pinned → vendored origin
 
 
 def test_status_reports_no_skills(tmp_path: Path) -> None:
@@ -126,6 +127,7 @@ def test_link_symlinks_skills_into_target_dir(
 
     assert result.exit_code == 0
     assert "demo" in result.stdout
+    assert "(local)" in result.stdout  # no pin → reported local
     assert (target / "demo").is_symlink()
 
 
