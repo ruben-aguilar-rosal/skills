@@ -551,3 +551,121 @@ sources:
     hold: false
     dest: skills/aws
     accept_invalid: true
+- repo: fluxcd/agent-skills
+  ref: main
+  watch:
+  - skills/
+  ignore: []
+  dest: skills/kubernetes
+  skills:
+  - path: skills/gitops-cluster-debug
+    synced_sha: 9c50a83ba3d4d1b6e0ac2d18af9ab91263094654
+    hold: false
+    dest: skills/kubernetes
+    accept_findings:
+    - PE3
+    - RA1
+    accept_invalid: true
+  - path: skills/gitops-knowledge
+    synced_sha: 9c50a83ba3d4d1b6e0ac2d18af9ab91263094654
+    hold: false
+    dest: skills/kubernetes
+    accept_findings:
+    - PE3
+    - RA1
+    accept_invalid: true
+  - path: skills/gitops-repo-audit
+    synced_sha: 9c50a83ba3d4d1b6e0ac2d18af9ab91263094654
+    hold: false
+    dest: skills/kubernetes
+    accept_findings:
+    - PE3
+    - RA1
+    accept_invalid: true
+- repo: akin-ozer/cc-devops-skills
+  ref: main
+  watch:
+  - devops-skills-plugin/skills/
+  ignore: []
+  dest: skills/kubernetes
+  skills:
+  - path: devops-skills-plugin/skills/k8s-debug
+    synced_sha: feaf2b2f3c9544aa559836731cc80e363183f788
+    hold: false
+    dest: skills/kubernetes
+    accept_findings:
+    - OH1
+    - TM1
+  - path: devops-skills-plugin/skills/k8s-yaml-generator
+    synced_sha: feaf2b2f3c9544aa559836731cc80e363183f788
+    hold: false
+    dest: skills/kubernetes
+  - path: devops-skills-plugin/skills/k8s-yaml-validator
+    synced_sha: feaf2b2f3c9544aa559836731cc80e363183f788
+    hold: false
+    dest: skills/kubernetes
+    accept_findings:
+    - OH1
+    accept_invalid: true
+  - path: devops-skills-plugin/skills/helm-generator
+    synced_sha: feaf2b2f3c9544aa559836731cc80e363183f788
+    hold: false
+    dest: skills/kubernetes
+    accept_findings:
+    - PE3
+    - TM1
+    accept_invalid: true
+  - path: devops-skills-plugin/skills/helm-validator
+    synced_sha: feaf2b2f3c9544aa559836731cc80e363183f788
+    hold: false
+    dest: skills/kubernetes
+    accept_findings:
+    - PE3
+    - RA1
+    accept_invalid: true
+  - path: devops-skills-plugin/skills/terraform-generator
+    synced_sha: feaf2b2f3c9544aa559836731cc80e363183f788
+    hold: false
+    dest: skills/iac
+    accept_findings:
+    - PE3
+    accept_invalid: true
+  - path: devops-skills-plugin/skills/terraform-validator
+    synced_sha: feaf2b2f3c9544aa559836731cc80e363183f788
+    hold: false
+    dest: skills/iac
+    accept_findings:
+    - RA1
+    - TM1
+    accept_invalid: true
+  - path: devops-skills-plugin/skills/terragrunt-generator
+    synced_sha: feaf2b2f3c9544aa559836731cc80e363183f788
+    hold: false
+    dest: skills/iac
+    accept_findings:
+    - PE3
+    accept_invalid: true
+  - path: devops-skills-plugin/skills/terragrunt-validator
+    synced_sha: feaf2b2f3c9544aa559836731cc80e363183f788
+    hold: false
+    dest: skills/iac
+    accept_findings:
+    - RA1
+    accept_invalid: true
+  - path: devops-skills-plugin/skills/promql-generator
+    synced_sha: feaf2b2f3c9544aa559836731cc80e363183f788
+    hold: false
+    dest: skills/observability
+    accept_invalid: true
+  - path: devops-skills-plugin/skills/promql-validator
+    synced_sha: feaf2b2f3c9544aa559836731cc80e363183f788
+    hold: false
+    dest: skills/observability
+    accept_findings:
+    - OH1
+    accept_invalid: true
+  - path: devops-skills-plugin/skills/logql-generator
+    synced_sha: feaf2b2f3c9544aa559836731cc80e363183f788
+    hold: false
+    dest: skills/observability
+    accept_invalid: true
