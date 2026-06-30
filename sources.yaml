@@ -240,3 +240,106 @@ sources:
     synced_sha: 06d6028b5c623016c59ce8536f578e5a1127b499
     hold: false
     accept_invalid: true
+- repo: anthropics/skills
+  ref: main
+  watch:
+  - skills/
+  ignore:
+  - skills/brand-guidelines
+  - skills/internal-comms
+  - skills/claude-api
+  - template
+  skills:
+  - path: skills/algorithmic-art
+    synced_sha: 35414756ca55738e050562e272a6bbc6273aa926
+    hold: false
+    dest: skills/ui/anthropic
+    accept_invalid: true
+  - path: skills/canvas-design
+    synced_sha: 35414756ca55738e050562e272a6bbc6273aa926
+    hold: false
+    dest: skills/ui/anthropic
+    accept_findings:
+    - TM1
+  - path: skills/frontend-design
+    synced_sha: 35414756ca55738e050562e272a6bbc6273aa926
+    hold: false
+    dest: skills/ui/anthropic
+  - path: skills/theme-factory
+    synced_sha: 35414756ca55738e050562e272a6bbc6273aa926
+    hold: false
+    dest: skills/ui/anthropic
+    accept_findings:
+    - TM1
+  - path: skills/mcp-builder
+    synced_sha: 35414756ca55738e050562e272a6bbc6273aa926
+    hold: false
+    dest: skills/engineering
+    accept_findings:
+    - PE3
+    - SC4
+    - SC6
+    accept_invalid: true
+  - path: skills/webapp-testing
+    synced_sha: 35414756ca55738e050562e272a6bbc6273aa926
+    hold: false
+    dest: skills/engineering
+    accept_findings:
+    - TM1
+    accept_invalid: true
+  - path: skills/skill-creator
+    synced_sha: 35414756ca55738e050562e272a6bbc6273aa926
+    hold: false
+    dest: skills/engineering
+    accept_findings:
+    - E2
+    - OH1
+    accept_invalid: true
+  - path: skills/web-artifacts-builder
+    synced_sha: 35414756ca55738e050562e272a6bbc6273aa926
+    hold: false
+    dest: skills/productivity
+    accept_invalid: true
+  - path: skills/doc-coauthoring
+    synced_sha: 35414756ca55738e050562e272a6bbc6273aa926
+    hold: false
+    dest: skills/productivity
+  - path: skills/slack-gif-creator
+    synced_sha: 35414756ca55738e050562e272a6bbc6273aa926
+    hold: false
+    dest: skills/slack
+    accept_findings:
+    - SC4
+  - path: skills/docx
+    synced_sha: 35414756ca55738e050562e272a6bbc6273aa926
+    hold: false
+    dest: skills/documents
+    accept_findings:
+    - E2
+    - OH1
+    - P2
+    - TM1
+    accept_invalid: true
+  - path: skills/pdf
+    synced_sha: 35414756ca55738e050562e272a6bbc6273aa926
+    hold: false
+    dest: skills/documents
+  - path: skills/pptx
+    synced_sha: 35414756ca55738e050562e272a6bbc6273aa926
+    hold: false
+    dest: skills/documents
+    accept_findings:
+    - E2
+    - P2
+    - TM1
+    accept_invalid: true
+  - path: skills/xlsx
+    synced_sha: 35414756ca55738e050562e272a6bbc6273aa926
+    hold: false
+    dest: skills/documents
+    accept_findings:
+    - E2
+    - OH1
+    - P2
+    - TM1
+    accept_invalid: true
