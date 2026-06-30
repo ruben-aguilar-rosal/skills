@@ -12,6 +12,14 @@ skipped (see *Not vendored* below).
 
 ## Skills in this folder
 
+> **Locally authored (not from the toolkit):**
+> [`aws-cost-optimization-tips`](aws-cost-optimization-tips/) — runs the 59 read-only
+> cost-optimization runbooks from
+> [`aws-samples/sample-cfm-tips-mcp`](https://github.com/aws-samples/sample-cfm-tips-mcp)
+> directly as scripts (no MCP server). Find AWS savings, right-size, hunt unused/idle
+> resources, evaluate Savings Plans/RIs, generate cost reports. Self-contained — the
+> runner clones the upstream repo and builds its venv on first use, no manual setup.
+
 ### Core (11)
 | Skill | Use it for |
 |---|---|
