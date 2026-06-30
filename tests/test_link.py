@@ -15,13 +15,14 @@ so these tests point it at `tmp_path` and never touch the real home directory:
 from pathlib import Path
 
 from skillsync.commands.link import LinkAction, run_link
+from skillsync.config import Config, SkillPin, Source
 from skillsync.layout import write_text
 
 
-def _seed_skill(root: Path, name: str) -> Path:
-    """Lay down a minimal on-disk skill folder under `skills/<name>/`."""
-    write_text(root / "skills" / name / "SKILL.md", f"# {name}\n")
-    return (root / "skills" / name).resolve()
+def _seed_skill(root: Path, name: str, dest: str = "skills") -> Path:
+    """Lay down a minimal on-disk skill folder under `<dest>/<name>/`."""
+    write_text(root / dest / name / "SKILL.md", f"# {name}\n")
+    return (root / dest / name).resolve()
 
 
 def test_link_creates_one_symlink_per_skill(tmp_path: Path) -> None:
@@ -121,3 +122,49 @@ def test_link_action_is_a_dataclass_carrying_paths(tmp_path: Path) -> None:
     assert action.name == "demo"
     assert action.link_path == target / "demo"
     assert action.source == demo
+
+
+def test_link_without_config_marks_every_skill_local(tmp_path: Path) -> None:
+    """With no config, every discovered skill is reported `local`."""
+    _seed_skill(tmp_path, "demo")
+
+    [action] = run_link(tmp_path, target_dir=tmp_path / "links", dry_run=True)
+
+    assert action.origin == "local"
+
+
+def test_link_tags_vendored_vs_local_from_config(tmp_path: Path) -> None:
+    """A skill with a pin is `vendored`; a hand-written one with no pin is `local`."""
+    _seed_skill(tmp_path, "vend", dest="skills/ui")
+    _seed_skill(tmp_path, "mine", dest="skills/meta")
+    config = Config(
+        sources=[
+            Source(
+                repo="owner/repo",
+                ref="main",
+                dest="skills/ui",
+                skills=[SkillPin(path="x/vend", synced_sha="abc")],
+            )
+        ]
+    )
+
+    actions = run_link(
+        tmp_path, target_dir=tmp_path / "links", config=config, dry_run=True
+    )
+
+    origin = {a.name: a.origin for a in actions}
+    assert origin == {"vend": "vendored", "mine": "local"}
+
+
+def test_link_links_local_skill_not_in_config(tmp_path: Path) -> None:
+    """A local skill absent from sources.yaml is still symlinked (no registration)."""
+    mine = _seed_skill(tmp_path, "mine", dest="skills/meta")
+    target = tmp_path / "links"
+    config = Config(sources=[])  # nothing pinned
+
+    actions = run_link(tmp_path, target_dir=target, config=config)
+
+    assert [(a.name, a.action, a.origin) for a in actions] == [
+        ("mine", "create", "local")
+    ]
+    assert (target / "mine").resolve() == mine
