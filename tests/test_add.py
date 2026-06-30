@@ -15,7 +15,12 @@ cover the onboarding outcome matrix:
 
 from pathlib import Path
 
-from skillsync.commands.add import AddOutcome, run_add
+from skillsync.commands.add import (
+    AddOutcome,
+    _invalid_body,
+    _quarantine_body,
+    run_add,
+)
 from skillsync.config import Config, SkillPin, Source, load_config
 from skillsync.layout import SkillLayout, read_text
 from skillsync.ports.llm import LLMResult
@@ -402,3 +407,33 @@ def test_add_validate_fail_emits_issue_and_no_pr(tmp_path: Path) -> None:
     assert _pin(config).synced_sha is None
     layout = SkillLayout.resolve(tmp_path, "skills/demo")
     assert read_text(layout.skill_md_path) is None
+
+
+def _huge_changeset() -> "ChangeSet":
+    """A change set whose diff dwarfs GitHub's 64KB issue-body cap."""
+    from skillsync.stages.detect import ChangeSet
+
+    return ChangeSet(
+        skill_path="skills/demo",
+        name="demo",
+        kind="reonboard",
+        from_sha=None,
+        to_sha="abc",
+        diff="x" * 200_000,
+    )
+
+
+def test_invalid_body_stays_under_github_limit() -> None:
+    """A skill with a giant diff yields an issue body within GitHub's 64KB cap."""
+    body = _invalid_body(_huge_changeset(), ["referenced file does not exist: a.py"])
+
+    assert len(body) < 65_536
+    assert "truncated" in body
+
+
+def test_quarantine_body_stays_under_github_limit() -> None:
+    """The quarantine body also truncates the embedded diff under the cap."""
+    body = _quarantine_body(_huge_changeset(), GateResult(passed=False))
+
+    assert len(body) < 65_536
+    assert "truncated" in body
