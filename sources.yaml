@@ -354,3 +354,200 @@ sources:
     synced_sha: d7285dd1ee18ba53981f80d7b1b32b920ed92d77
     hold: false
     dest: skills/loop
+- repo: aws/agent-toolkit-for-aws
+  ref: main
+  watch:
+  - skills/
+  ignore: []
+  dest: skills/aws
+  skills:
+  - path: skills/core-skills/amazon-bedrock
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_findings:
+    - E2
+    - PE3
+    - TM2
+    accept_invalid: true
+  - path: skills/core-skills/aws-billing-and-cost-management
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/core-skills/aws-cloudformation
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/core-skills/aws-containers
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/core-skills/aws-iam
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/core-skills/aws-messaging-and-streaming
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/core-skills/aws-observability
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_findings:
+    - TM2
+    accept_invalid: true
+  - path: skills/core-skills/aws-sdk-python-usage
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_findings:
+    - PE3
+    accept_invalid: true
+  - path: skills/core-skills/aws-serverless
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_findings:
+    - E2
+    - TM1
+    accept_invalid: true
+  - path: skills/core-skills/signing-in-to-aws
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_findings:
+    - PE3
+    accept_invalid: true
+  - path: skills/specialized-skills/analytics-skills/exploring-data-catalog
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/specialized-skills/analytics-skills/querying-data-lake
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/specialized-skills/database-skills/amazon-aurora-postgresql
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_findings:
+    - TM2
+    accept_invalid: true
+  - path: skills/specialized-skills/database-skills/amazon-elasticache
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_findings:
+    - E2
+    - P2
+    - PE3
+    - TM1
+    - TM2
+    accept_invalid: true
+  - path: skills/specialized-skills/database-skills/exporting-rds-to-s3
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_findings:
+    - TM1
+    accept_invalid: true
+  - path: skills/specialized-skills/ec2-skills/creating-ec2-image-builder-pipeline
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/specialized-skills/ec2-skills/launching-ec2-instance-with-best-practices
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_findings:
+    - TM2
+    accept_invalid: true
+  - path: skills/specialized-skills/ec2-skills/setting-up-ec2-instance-profiles
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/specialized-skills/networking-and-content-delivery-skills/configuring-vpc-endpoints-for-private-aws-service-access
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/specialized-skills/networking-and-content-delivery-skills/connecting-vpcs-with-peering
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/specialized-skills/networking-and-content-delivery-skills/creating-production-vpc-multi-az
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/specialized-skills/networking-and-content-delivery-skills/enabling-lambda-vpc-internet-access
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/specialized-skills/networking-and-content-delivery-skills/routing-traffic-with-route53-and-cloudfront
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/specialized-skills/operations-skills/setting-up-cloudtrail-multi-region
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/specialized-skills/operations-skills/setting-up-cloudwatch-alarm-notifications
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/specialized-skills/operations-skills/troubleshooting-application-failures
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/specialized-skills/storage-skills/creating-data-lake-table
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/specialized-skills/storage-skills/securing-s3-buckets
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/specialized-skills/storage-skills/storing-and-querying-vectors
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/specialized-skills/storage-skills/troubleshooting-efs
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/specialized-skills/storage-skills/troubleshooting-s3-files
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/specialized-skills/system-table-skills/querying-aws-cloudwatch
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true
+  - path: skills/specialized-skills/system-table-skills/querying-aws-s3
+    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    hold: false
+    dest: skills/aws
+    accept_invalid: true

@@ -58,6 +58,24 @@ _ONBOARDING_LABEL = "onboarding"
 # Label applied to a vendored (verbatim, no-adaptation) onboarding PR.
 _VENDORED_LABEL = "vendored"
 
+# GitHub rejects an issue/PR body over 65536 chars. Cap the embedded raw diff well
+# under that so the rest of the body (findings, errors, headings) always fits.
+_MAX_ISSUE_DIFF_CHARS = 50_000
+
+
+def _truncated_diff(diff: str) -> str:
+    """Return the raw diff trimmed to fit GitHub's body cap, with a noted elision.
+
+    A vendored subtree can be far larger than GitHub's 64KB issue-body limit (e.g.
+    a skill bundling dozens of reference files), so embedding it whole makes
+    `gh issue create` fail. Keep the head — enough to triage — and note the cut.
+    """
+    diff = diff.strip()
+    if len(diff) <= _MAX_ISSUE_DIFF_CHARS:
+        return diff
+    omitted = len(diff) - _MAX_ISSUE_DIFF_CHARS
+    return diff[:_MAX_ISSUE_DIFF_CHARS] + f"\n… [truncated {omitted} chars]"
+
 
 def _accepted_invalid_flag(errors: list[str]) -> str:
     """Build the PR flag noting a validation failure the author accepted (accept_invalid)."""
@@ -443,7 +461,7 @@ def _quarantine_body(changeset: ChangeSet, gate: GateResult) -> str:
         f"## Extracted commands\n{commands}\n\n"
         f"## Extracted URLs\n{urls}\n\n"
         "## Raw upstream content\n```diff\n"
-        f"{changeset.diff.strip()}\n```\n"
+        f"{_truncated_diff(changeset.diff)}\n```\n"
     )
 
 
@@ -456,5 +474,5 @@ def _invalid_body(changeset: ChangeSet, errors: list[str]) -> str:
         "pin stays unsynced.\n\n"
         f"## Validation errors\n{error_lines}\n\n"
         "## Raw upstream content\n```diff\n"
-        f"{changeset.diff.strip()}\n```\n"
+        f"{_truncated_diff(changeset.diff)}\n```\n"
     )
