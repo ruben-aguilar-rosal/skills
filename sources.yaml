@@ -669,3 +669,72 @@ sources:
     hold: false
     dest: skills/observability
     accept_invalid: true
+- repo: hashicorp/agent-skills
+  ref: main
+  watch:
+  - terraform/
+  ignore: []
+  dest: skills/iac
+  skills:
+  - path: terraform/code-generation/skills/terraform-style-guide
+    synced_sha: 339a113935812ad75c6ff90d418b739a021826d1
+    hold: false
+    dest: skills/iac
+  - path: terraform/code-generation/skills/terraform-test
+    synced_sha: 339a113935812ad75c6ff90d418b739a021826d1
+    hold: false
+    dest: skills/iac
+    accept_invalid: true
+  - path: terraform/code-generation/skills/terraform-search-import
+    synced_sha: 339a113935812ad75c6ff90d418b739a021826d1
+    hold: false
+    dest: skills/iac
+    accept_invalid: true
+  - path: terraform/module-generation/skills/refactor-module
+    synced_sha: 339a113935812ad75c6ff90d418b739a021826d1
+    hold: false
+    dest: skills/iac
+    accept_invalid: true
+- repo: wshobson/agents
+  ref: main
+  watch:
+  - plugins/incident-response/
+  - plugins/observability-monitoring/
+  ignore: []
+  dest: skills/sre
+  skills:
+  - path: plugins/incident-response/skills/postmortem-writing
+    synced_sha: 5cc2549a50fc672230efd0a0307e2fd27ffba792
+    hold: false
+    dest: skills/sre
+    accept_invalid: true
+  - path: plugins/incident-response/skills/incident-runbook-templates
+    synced_sha: 5cc2549a50fc672230efd0a0307e2fd27ffba792
+    hold: false
+    dest: skills/sre
+    accept_invalid: true
+  - path: plugins/incident-response/skills/on-call-handoff-patterns
+    synced_sha: 5cc2549a50fc672230efd0a0307e2fd27ffba792
+    hold: false
+    dest: skills/sre
+    accept_invalid: true
+  - path: plugins/observability-monitoring/skills/prometheus-configuration
+    synced_sha: 5cc2549a50fc672230efd0a0307e2fd27ffba792
+    hold: false
+    dest: skills/observability
+    accept_invalid: true
+  - path: plugins/observability-monitoring/skills/grafana-dashboards
+    synced_sha: 5cc2549a50fc672230efd0a0307e2fd27ffba792
+    hold: false
+    dest: skills/observability
+    accept_invalid: true
+  - path: plugins/observability-monitoring/skills/distributed-tracing
+    synced_sha: 5cc2549a50fc672230efd0a0307e2fd27ffba792
+    hold: false
+    dest: skills/observability
+    accept_invalid: true
+  - path: plugins/observability-monitoring/skills/slo-implementation
+    synced_sha: 5cc2549a50fc672230efd0a0307e2fd27ffba792
+    hold: false
+    dest: skills/observability
+    accept_invalid: true
