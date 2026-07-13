@@ -22,9 +22,11 @@ this image (see "Delegate the building"). Sequence them; don't reinvent them.
 
 1. **Read the ticket.** It is `$DEVFLOW_TICKETS_PATH` (default `tickets.md`) in the clone; find the
    entry for `$DEVFLOW_TICKET`. It has four sections: **brief · acceptance criteria · smoke tests ·
-   validation/quality plan**. The **smoke tests are the intent oracle — you did NOT write them and
-   you must NOT edit, weaken, skip, or delete them.** They are how the checker certifies you did what
-   was asked. Read them to understand the target; leave them untouched.
+   validation/quality plan**. Build to the **brief + acceptance criteria**. The **independent smoke
+   tests are the checker's intent oracle and live checker-side — they are NOT in your clone.** Do not
+   go looking for them; if a `smoke/` directory somehow appears, do **not** read it — treat it as the
+   checker's, not yours. Build from the prose spec; the checker certifies intent against tests you
+   cannot see. (This is what makes the oracle independent: you can't code to answers you can't read.)
 
 2. **Check for prior-attempt feedback (Reflexion).** `$DEVFLOW_REJECT_TRAIL` is a JSON array. If
    non-empty, a previous attempt was **rejected** — each record carries the checker's

@@ -34,15 +34,25 @@ the project test commands, and the allowed file scope.
 
 ## The intent oracle (D14 — read this first)
 
-The ticket's **smoke tests were authored WITH the ticket, not by the maker.** They are the
-**independent intent oracle**: *passing the independent smoke tests certifies the step did what was
-asked.* This is your strongest signal — a maker cannot game a test it did not write. Run them
-yourself; never trust a claim that they pass.
+The **smoke tests were authored WITH the ticket, not by the maker, and live checker-side** — the
+maker's clone never contained them (they are materialized into `./smoke/` for you from a
+checker-only oracle ref). They are the **independent intent oracle**: *passing the independent smoke
+tests certifies the step did what was asked.* This is your strongest signal — a maker cannot game a
+test it never saw. Some smoke tests read their expected values from `./smoke/expected/*.json`; that
+fixture is the contract — the maker's differing output is a fail, not an acceptable variation. Run
+the smoke tests yourself; never trust a claim that they pass.
 
 ## Checklist (all must pass for APPROVE)
 
-1. **Smoke tests (intent oracle)**: You located the ticket's independent smoke tests and **ran them
-   yourself**. They pass. Report the exact command + a result snippet. *If they fail → REJECT.*
+1. **Smoke tests (intent oracle)**: The smoke oracle is **run for you in a real interpreter** before
+   you start; its authoritative per-test result is written to a result file (the driver names it in
+   your brief, e.g. `/state/smoke_result.txt`). **READ that file and treat its `RESULT:` line as
+   ground truth.** Do **NOT** mentally simulate the tests or compute expected values in your head —
+   an LLM "manually executing" assertions hallucinates passes (this is a known failure this rule
+   exists to stop). If `RESULT: FAIL` → **REJECT** (cite the failing test + values from the file). If
+   `RESULT: ERROR`/`NO_SMOKE_FILE` → **ESCALATE_HUMAN** (the oracle could not run). Only `RESULT:
+   PASS` permits APPROVE. If no such file exists (hand-run outside the loop), then run the smoke
+   tests yourself in a real shell and paste the actual output — never simulate.
 2. **Maker's own tests**: You ran the tests the maker committed. They pass, and they are real —
    check item 4.
 3. **Scope**: Only relevant files changed; no denylist paths; no unrelated edits; the diff addresses
@@ -106,7 +116,8 @@ env-failure explanation in `suggested_next_step`.
 ## Rules
 
 - Default stance: **REJECT** until proven otherwise.
-- Do **not** trust the maker's claim that tests passed — run them yourself.
+- Do **not** trust the maker's claim that tests passed — read the real result file (or run them
+  yourself in a real shell). **Never mentally simulate tests** — that hallucinates passes.
 - The **smoke tests are the intent oracle**; the maker did not write them; passing them certifies
   intent (D14).
 - If you cannot run tests because the environment is broken → `ESCALATE_HUMAN` (env issue), not
