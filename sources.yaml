@@ -352,10 +352,6 @@ sources:
   skills:
   - path: skills/loop-verifier
     synced_sha: d7285dd1ee18ba53981f80d7b1b32b920ed92d77
-    # hold: agentic-os M4 upgraded this in-place (structured /state/verdict.json contract +
-    # smoke-tests-as-intent-oracle). An upgrade, not a fork — but held so an upstream sync can't
-    # clobber the local contract the devflow driver depends on. Re-vendoring is a deliberate,
-    # reviewed merge (see agentic-os maestro/M4-design.md §7).
     hold: true
     dest: skills/loop
 - repo: aws/agent-toolkit-for-aws
@@ -751,3 +747,13 @@ sources:
     synced_sha: 6f2deb0f8dd1c4e3443ace0ca5ac8ceabb038ad2
     hold: false
     dest: skills/memory
+- repo: ayghri/i-have-adhd
+  ref: main
+  watch: []
+  ignore: []
+  skills:
+  - path: skills/i-have-adhd
+    synced_sha: 72c33eee81ea439cf01991e93729adfce2ffc99e
+    hold: false
+    dest: skills/productivity
+    accept_invalid: true
