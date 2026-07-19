@@ -17,8 +17,9 @@ to answer questions accurately, generate correct YAML manifests, and explain Flu
 
 **Rules:**
 - Always use the exact apiVersion/kind combinations from the CRD table below. Never invent API versions.
-- Before generating YAML for any CRD, read its OpenAPI schema from `assets/schemas/` to verify field names, types, and enum values.
+- Before generating YAML for any CRD, verify field names, types, enum values, and required fields against its field index in `assets/schemas/` (see the CRD table below). Each line is `<dotted.path> <type> [(required)] [enum=a|b] [default=x] [pattern="..."] [min=N max=N] # description`, with arrays as `path[]` and string maps as `<map[string]T>`. Grep by path prefix to list a subtree (e.g. `grep '^spec\.chart\.' assets/schemas/helmrelease-helm-v2.fields.txt`) or grep a field name to find where it lives. Constraints the index doesn't carry (mutual-exclusivity and other CEL rules) are enforced by `flux schema validate`.
 - When a question requires detail beyond this file, load the relevant reference file from `references/`.
+- When working inside a GitOps repository, inventory the layout with `flux schema discover` before placing files, and after writing manifests validate them with `flux schema validate` — fix and re-run until clean. Load `references/flux-cli.md` for the full CLI workflow, local rendering, and overlay debugging. If the tools aren't installed, skip validation and say so.
 - Prefer Flux Operator (FluxInstance) for cluster setup. Do not reference `flux bootstrap` or legacy `gotk-*` files.
 
 ## What is Flux
@@ -81,7 +82,7 @@ Namespaces, Sources, Kustomizations, HelmReleases, RBAC, ...
 | HelmChart | source.toolkit.fluxcd.io/v1 | source-controller | Fetch and package Helm charts |
 | Bucket | source.toolkit.fluxcd.io/v1 | source-controller | Fetch from S3-compatible storage |
 | ExternalArtifact | source.toolkit.fluxcd.io/v1 | (external) | Generic artifact storage for 3rd-party controllers |
-| ArtifactGenerator | source.extensions.fluxcd.io/v1beta1 | source-controller | Compose/decompose artifacts from multiple sources |
+| ArtifactGenerator | source.extensions.fluxcd.io/v1beta1 | source-watcher | Compose/decompose artifacts from multiple sources |
 | Kustomization | kustomize.toolkit.fluxcd.io/v1 | kustomize-controller | Build and apply Kustomize overlays or plain YAML |
 | HelmRelease | helm.toolkit.fluxcd.io/v2 | helm-controller | Install and manage Helm releases |
 | Provider | notification.toolkit.fluxcd.io/v1beta3 | notification-controller | External notification provider config |
@@ -129,6 +130,9 @@ spec:
       ready: true
       readyExpr: "status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')"
 ```
+
+For ordering *within* a single ResourceSet, use `spec.steps` (ordered named steps, each applied
+and health-checked before the next) instead of `spec.resources` — see `references/resourcesets.md`.
 
 ### Reactivity with Watch Labels
 
@@ -413,32 +417,36 @@ load `references/notifications.md`.
     operation: copy
   ```
 
+**Drift control — pick the right knob:**
+- Kustomization `spec.ignore` — exclude specific JSON-pointer fields from drift detection/apply (e.g. HPA `replicas`). Distinct from the `kustomize.toolkit.fluxcd.io/ssa: Ignore` annotation, which skips a whole object.
+- HelmRelease `spec.driftDetection.ignore` — the HelmRelease equivalent, only active when `driftDetection.mode` is `warn`/`enabled`.
+
 ## Reference Index
 
-Load reference files and OpenAPI schemas based on the question topic.
-Load at most 1-2 reference files per question. Read schemas for field-level validation when generating YAML.
+Load reference files and field indexes based on the question topic.
+Grep the field index for field-level lookups when generating YAML.
 
-| CRD | Reference | Schema |
+| CRD | Reference | Field Index |
 |-----|-----------|--------|
-| FluxInstance | `references/flux-operator.md` | `assets/schemas/fluxinstance-fluxcd-v1.json` |
-| FluxReport | `references/flux-operator.md` | `assets/schemas/fluxreport-fluxcd-v1.json` |
-| ResourceSet | `references/resourcesets.md` | `assets/schemas/resourceset-fluxcd-v1.json` |
-| ResourceSetInputProvider | `references/resourcesets.md` | `assets/schemas/resourcesetinputprovider-fluxcd-v1.json` |
-| GitRepository | `references/sources.md` | `assets/schemas/gitrepository-source-v1.json` |
-| OCIRepository | `references/sources.md` | `assets/schemas/ocirepository-source-v1.json` |
-| HelmRepository | `references/sources.md` | `assets/schemas/helmrepository-source-v1.json` |
-| HelmChart | `references/sources.md` | `assets/schemas/helmchart-source-v1.json` |
-| Bucket | `references/sources.md` | `assets/schemas/bucket-source-v1.json` |
-| ExternalArtifact | `references/sources.md` | `assets/schemas/externalartifact-source-v1.json` |
-| ArtifactGenerator | `references/sources.md` | `assets/schemas/artifactgenerator-source-v1beta1.json` |
-| Kustomization | `references/kustomization.md` | `assets/schemas/kustomization-kustomize-v1.json` |
-| HelmRelease | `references/helmrelease.md` | `assets/schemas/helmrelease-helm-v2.json` |
-| Provider | `references/notifications.md` | `assets/schemas/provider-notification-v1beta3.json` |
-| Alert | `references/notifications.md` | `assets/schemas/alert-notification-v1beta3.json` |
-| Receiver | `references/notifications.md` | `assets/schemas/receiver-notification-v1.json` |
-| ImageRepository | `references/image-automation.md` | `assets/schemas/imagerepository-image-v1.json` |
-| ImagePolicy | `references/image-automation.md` | `assets/schemas/imagepolicy-image-v1.json` |
-| ImageUpdateAutomation | `references/image-automation.md` | `assets/schemas/imageupdateautomation-image-v1.json` |
+| FluxInstance | `references/flux-operator.md` | `assets/schemas/fluxinstance-fluxcd-v1.fields.txt` |
+| FluxReport | `references/flux-operator.md` | `assets/schemas/fluxreport-fluxcd-v1.fields.txt` |
+| ResourceSet | `references/resourcesets.md` | `assets/schemas/resourceset-fluxcd-v1.fields.txt` |
+| ResourceSetInputProvider | `references/resourcesets.md` | `assets/schemas/resourcesetinputprovider-fluxcd-v1.fields.txt` |
+| GitRepository | `references/sources.md` | `assets/schemas/gitrepository-source-v1.fields.txt` |
+| OCIRepository | `references/sources.md` | `assets/schemas/ocirepository-source-v1.fields.txt` |
+| HelmRepository | `references/sources.md` | `assets/schemas/helmrepository-source-v1.fields.txt` |
+| HelmChart | `references/sources.md` | `assets/schemas/helmchart-source-v1.fields.txt` |
+| Bucket | `references/sources.md` | `assets/schemas/bucket-source-v1.fields.txt` |
+| ExternalArtifact | `references/sources.md` | `assets/schemas/externalartifact-source-v1.fields.txt` |
+| ArtifactGenerator | `references/sources.md` | `assets/schemas/artifactgenerator-source-v1beta1.fields.txt` |
+| Kustomization | `references/kustomization.md` | `assets/schemas/kustomization-kustomize-v1.fields.txt` |
+| HelmRelease | `references/helmrelease.md` | `assets/schemas/helmrelease-helm-v2.fields.txt` |
+| Provider | `references/notifications.md` | `assets/schemas/provider-notification-v1beta3.fields.txt` |
+| Alert | `references/notifications.md` | `assets/schemas/alert-notification-v1beta3.fields.txt` |
+| Receiver | `references/notifications.md` | `assets/schemas/receiver-notification-v1.fields.txt` |
+| ImageRepository | `references/image-automation.md` | `assets/schemas/imagerepository-image-v1.fields.txt` |
+| ImagePolicy | `references/image-automation.md` | `assets/schemas/imagepolicy-image-v1.fields.txt` |
+| ImageUpdateAutomation | `references/image-automation.md` | `assets/schemas/imageupdateautomation-image-v1.fields.txt` |
 
 | Topic | Reference |
 |-------|-----------|
@@ -447,5 +455,6 @@ Load at most 1-2 reference files per question. Read schemas for field-level vali
 | Web UI, dashboard, SSO, OIDC, Dex, Keycloak, Entra ID, RBAC | `references/web-ui.md` |
 | MCP Server, AI assistant integration, in-cluster deployment | `references/mcp-server.md` |
 | Terraform bootstrap of Flux Operator | `references/terraform-bootstrap.md` |
+| Flux CLI and plugins: `flux schema` discover/validate/extract, local rendering with `flux build` and `flux operator build`, overlay debugging | `references/flux-cli.md` |
 | Gitless GitOps, Flux OCI artifacts, `flux push artifact`, registry-based delivery | `references/gitless-gitops.md` |
 | Gitless image automation (ResourceSet + OCIArtifactTag) | `references/gitless-image-automation.md` |
