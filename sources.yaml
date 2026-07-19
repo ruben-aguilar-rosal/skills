@@ -123,6 +123,20 @@ sources:
     synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
     hold: false
     dest: skills/engineering
+  - path: skills/engineering/code-review
+    synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    hold: false
+    dest: skills/engineering
+    accept_invalid: true
+  - path: skills/engineering/research
+    synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    hold: false
+    dest: skills/engineering
+  - path: skills/engineering/wayfinder
+    synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    hold: false
+    dest: skills/engineering
+    accept_invalid: true
 - repo: multica-ai/andrej-karpathy-skills
   ref: main
   watch:
