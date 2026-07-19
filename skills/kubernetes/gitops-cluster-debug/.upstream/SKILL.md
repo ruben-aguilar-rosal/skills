@@ -4,7 +4,8 @@ description: >
   Debug and troubleshoot Flux CD on live Kubernetes clusters (not local repo files) via the Flux MCP
   server — inspects Flux resource status, reads controller logs, traces dependency chains, and performs
   installation health checks. Use when users report failing, stuck, or not-ready Flux resources on a
-  cluster, reconciliation errors, controller issues, artifact pull failures, or need live cluster
+  cluster, reconciliation errors, controller issues, artifact pull failures, image automation
+  not updating tags, alerts or webhooks not being delivered, or need live cluster
   Flux Operator troubleshooting.
 license: Apache-2.0
 compatibility: Requires flux-operator-mcp
@@ -26,11 +27,13 @@ root causes.
 - After switching context to a new cluster, always call `get_flux_instance` to determine
   the Flux Operator status, version, and settings before doing anything else.
 - When creating or updating resources on the cluster, generate a Kubernetes YAML manifest
-  and call the `apply_kubernetes_resource` tool. Do not apply resources unless explicitly
-  requested by the user. Before generating any YAML manifest, read the relevant OpenAPI
-  schema from `assets/schemas/` to verify the exact field names
-  and nesting. Schema files follow the naming convention `{kind}-{group}-{version}.json`
-  (see the CRD reference table below).
+  and call the `apply_kubernetes_manifest` tool. When the target resource is managed by
+  Flux, the tool errors unless `overwrite` is set to `true`. Do not apply resources unless
+  explicitly requested by the user. Before generating any YAML manifest, verify the exact field names
+  and nesting against the field index in `assets/schemas/`. Index files follow the naming
+  convention `{kind}-{group}-{version}.fields.txt`; each line is a dotted field path — grep by
+  path prefix (e.g. `grep '^spec\.' assets/schemas/kustomization-kustomize-v1.fields.txt`)
+  instead of reading the whole file (see the CRD reference table below).
 - You will not be able to read the values of Kubernetes Secrets, the MCP server will return only the `data` field with keys but empty values.
 
 ## Cluster Context
@@ -123,7 +126,71 @@ Follow these steps when troubleshooting a ResourceSet:
 7. Create a root cause analysis report. Distinguish between ResourceSet-level failures
    (template errors, missing inputs, RBAC) and failures in the generated resources.
 
-### Workflow 5: Kubernetes Logs Analysis
+### Workflow 5: Source Debugging
+
+Follow these steps when a source (GitRepository, OCIRepository, HelmRepository,
+HelmChart, Bucket) reports `FetchFailed` or downstream resources are stuck on
+an old revision:
+
+1. Call `get_flux_instance` to check the source-controller deployment status and
+   the `apiVersion` of the source kind.
+2. Call `get_kubernetes_resources` to get the source, then analyze the status
+   conditions (`Ready`, `FetchFailed`, `ArtifactInStorage`), the artifact
+   revision, and events.
+3. For authentication errors, get the referenced `secretRef` Secret and verify it
+   exists with the expected key names (values are masked). For cloud registries
+   with no secret, check `.spec.provider` and workload identity.
+4. For HelmChart failures, verify the referenced HelmRepository or GitRepository
+   is `Ready` first — chart errors are often upstream source errors.
+5. Compare the last reconcile time against `.spec.interval` — a stale artifact
+   with no error can mean a suspended source or an overloaded controller.
+6. Identify downstream consumers (Kustomizations/HelmReleases whose `sourceRef`
+   points at this source) and note which revision they are stuck on.
+7. Create a root cause analysis report. Load `references/troubleshooting.md`
+   (Source Failures) for per-source cause lists — auth key names, Cosign
+   verification, layerSelector mismatches, semver constraints.
+
+### Workflow 6: Image Automation Debugging
+
+Follow these steps when image tags are not being detected or no update commits
+appear in Git:
+
+1. Call `get_flux_instance` and verify `image-reflector-controller` and
+   `image-automation-controller` are listed in the components and running.
+2. Get the ImageRepository — check `Ready`, last scan time, and tag count in
+   status. Auth failures point to the `secretRef` or `.spec.provider`.
+3. Get the ImagePolicy — check `Ready` and `status.latestImage`. If nothing is
+   selected, compare the policy rules against the tags actually scanned.
+4. Get the ImageUpdateAutomation — check `Ready`, last push time, and events.
+   Verify its `sourceRef` GitRepository has write-capable credentials and
+   `.spec.git.push.branch` is the branch the user is watching.
+5. If everything is `Ready` but no commits appear: verify manifests under
+   `.spec.update.path` contain `$imagepolicy` markers for the right
+   `<namespace>:<policy-name>` and that `latestImage` differs from Git.
+6. Create a root cause analysis report tracing ImageRepository → ImagePolicy →
+   ImageUpdateAutomation → GitRepository.
+
+### Workflow 7: Notification Debugging
+
+Follow these steps when alerts are not being delivered or a webhook Receiver
+does not trigger reconciliation:
+
+1. Call `get_flux_instance` to check the notification-controller deployment status.
+2. Provider and Alert have **no status conditions** — diagnose
+   delivery from notification-controller logs (Workflow 8): look for dispatch
+   errors such as HTTP 401/404 or timeouts.
+3. Get the Alert and verify `.spec.eventSources` matches the resources expected
+   to produce events and `.spec.eventSeverity` is not filtering them out.
+4. Get the referenced Provider and verify `.spec.type`, `.spec.address`, and the
+   `secretRef` Secret key names.
+5. For Receivers (these do have a `Ready` condition): verify `status.webhookPath`
+   and the webhook Secret, then check logs for incoming requests to that path —
+   none means the external service is not calling the webhook.
+6. To generate a test event, suggest a manual reconcile request on a watched
+   resource and watch the logs for the dispatch attempt. Load
+   `references/troubleshooting.md` (Notification Failures) for cause lists.
+
+### Workflow 8: Kubernetes Logs Analysis
 
 When analyzing logs for any workload:
 
@@ -135,29 +202,29 @@ When analyzing logs for any workload:
 
 ## Flux CRD Reference
 
-Use this table to check API versions and read the OpenAPI schema when needed.
+Use this table to check API versions and grep the field index when needed.
 
-| Controller | Kind | apiVersion | OpenAPI Schema |
+| Controller | Kind | apiVersion | Field Index |
 |---|---|---|---|
-| flux-operator | FluxInstance | `fluxcd.controlplane.io/v1` | [fluxinstance-fluxcd-v1.json](assets/schemas/fluxinstance-fluxcd-v1.json) |
-| flux-operator | FluxReport | `fluxcd.controlplane.io/v1` | [fluxreport-fluxcd-v1.json](assets/schemas/fluxreport-fluxcd-v1.json) |
-| flux-operator | ResourceSet | `fluxcd.controlplane.io/v1` | [resourceset-fluxcd-v1.json](assets/schemas/resourceset-fluxcd-v1.json) |
-| flux-operator | ResourceSetInputProvider | `fluxcd.controlplane.io/v1` | [resourcesetinputprovider-fluxcd-v1.json](assets/schemas/resourcesetinputprovider-fluxcd-v1.json) |
-| source-controller | GitRepository | `source.toolkit.fluxcd.io/v1` | [gitrepository-source-v1.json](assets/schemas/gitrepository-source-v1.json) |
-| source-controller | OCIRepository | `source.toolkit.fluxcd.io/v1` | [ocirepository-source-v1.json](assets/schemas/ocirepository-source-v1.json) |
-| source-controller | Bucket | `source.toolkit.fluxcd.io/v1` | [bucket-source-v1.json](assets/schemas/bucket-source-v1.json) |
-| source-controller | HelmRepository | `source.toolkit.fluxcd.io/v1` | [helmrepository-source-v1.json](assets/schemas/helmrepository-source-v1.json) |
-| source-controller | HelmChart | `source.toolkit.fluxcd.io/v1` | [helmchart-source-v1.json](assets/schemas/helmchart-source-v1.json) |
-| source-controller | ExternalArtifact | `source.toolkit.fluxcd.io/v1` | [externalartifact-source-v1.json](assets/schemas/externalartifact-source-v1.json) |
-| source-watcher | ArtifactGenerator | `source.extensions.fluxcd.io/v1beta1` | [artifactgenerator-source-v1beta1.json](assets/schemas/artifactgenerator-source-v1beta1.json) |
-| kustomize-controller | Kustomization | `kustomize.toolkit.fluxcd.io/v1` | [kustomization-kustomize-v1.json](assets/schemas/kustomization-kustomize-v1.json) |
-| helm-controller | HelmRelease | `helm.toolkit.fluxcd.io/v2` | [helmrelease-helm-v2.json](assets/schemas/helmrelease-helm-v2.json) |
-| notification-controller | Provider | `notification.toolkit.fluxcd.io/v1beta3` | [provider-notification-v1beta3.json](assets/schemas/provider-notification-v1beta3.json) |
-| notification-controller | Alert | `notification.toolkit.fluxcd.io/v1beta3` | [alert-notification-v1beta3.json](assets/schemas/alert-notification-v1beta3.json) |
-| notification-controller | Receiver | `notification.toolkit.fluxcd.io/v1` | [receiver-notification-v1.json](assets/schemas/receiver-notification-v1.json) |
-| image-reflector-controller | ImageRepository | `image.toolkit.fluxcd.io/v1` | [imagerepository-image-v1.json](assets/schemas/imagerepository-image-v1.json) |
-| image-reflector-controller | ImagePolicy | `image.toolkit.fluxcd.io/v1` | [imagepolicy-image-v1.json](assets/schemas/imagepolicy-image-v1.json) |
-| image-automation-controller | ImageUpdateAutomation | `image.toolkit.fluxcd.io/v1` | [imageupdateautomation-image-v1.json](assets/schemas/imageupdateautomation-image-v1.json) |
+| flux-operator | FluxInstance | `fluxcd.controlplane.io/v1` | [fluxinstance-fluxcd-v1.fields.txt](assets/schemas/fluxinstance-fluxcd-v1.fields.txt) |
+| flux-operator | FluxReport | `fluxcd.controlplane.io/v1` | [fluxreport-fluxcd-v1.fields.txt](assets/schemas/fluxreport-fluxcd-v1.fields.txt) |
+| flux-operator | ResourceSet | `fluxcd.controlplane.io/v1` | [resourceset-fluxcd-v1.fields.txt](assets/schemas/resourceset-fluxcd-v1.fields.txt) |
+| flux-operator | ResourceSetInputProvider | `fluxcd.controlplane.io/v1` | [resourcesetinputprovider-fluxcd-v1.fields.txt](assets/schemas/resourcesetinputprovider-fluxcd-v1.fields.txt) |
+| source-controller | GitRepository | `source.toolkit.fluxcd.io/v1` | [gitrepository-source-v1.fields.txt](assets/schemas/gitrepository-source-v1.fields.txt) |
+| source-controller | OCIRepository | `source.toolkit.fluxcd.io/v1` | [ocirepository-source-v1.fields.txt](assets/schemas/ocirepository-source-v1.fields.txt) |
+| source-controller | Bucket | `source.toolkit.fluxcd.io/v1` | [bucket-source-v1.fields.txt](assets/schemas/bucket-source-v1.fields.txt) |
+| source-controller | HelmRepository | `source.toolkit.fluxcd.io/v1` | [helmrepository-source-v1.fields.txt](assets/schemas/helmrepository-source-v1.fields.txt) |
+| source-controller | HelmChart | `source.toolkit.fluxcd.io/v1` | [helmchart-source-v1.fields.txt](assets/schemas/helmchart-source-v1.fields.txt) |
+| source-controller | ExternalArtifact | `source.toolkit.fluxcd.io/v1` | [externalartifact-source-v1.fields.txt](assets/schemas/externalartifact-source-v1.fields.txt) |
+| source-watcher | ArtifactGenerator | `source.extensions.fluxcd.io/v1beta1` | [artifactgenerator-source-v1beta1.fields.txt](assets/schemas/artifactgenerator-source-v1beta1.fields.txt) |
+| kustomize-controller | Kustomization | `kustomize.toolkit.fluxcd.io/v1` | [kustomization-kustomize-v1.fields.txt](assets/schemas/kustomization-kustomize-v1.fields.txt) |
+| helm-controller | HelmRelease | `helm.toolkit.fluxcd.io/v2` | [helmrelease-helm-v2.fields.txt](assets/schemas/helmrelease-helm-v2.fields.txt) |
+| notification-controller | Provider | `notification.toolkit.fluxcd.io/v1beta3` | [provider-notification-v1beta3.fields.txt](assets/schemas/provider-notification-v1beta3.fields.txt) |
+| notification-controller | Alert | `notification.toolkit.fluxcd.io/v1beta3` | [alert-notification-v1beta3.fields.txt](assets/schemas/alert-notification-v1beta3.fields.txt) |
+| notification-controller | Receiver | `notification.toolkit.fluxcd.io/v1` | [receiver-notification-v1.fields.txt](assets/schemas/receiver-notification-v1.fields.txt) |
+| image-reflector-controller | ImageRepository | `image.toolkit.fluxcd.io/v1` | [imagerepository-image-v1.fields.txt](assets/schemas/imagerepository-image-v1.fields.txt) |
+| image-reflector-controller | ImagePolicy | `image.toolkit.fluxcd.io/v1` | [imagepolicy-image-v1.fields.txt](assets/schemas/imagepolicy-image-v1.fields.txt) |
+| image-automation-controller | ImageUpdateAutomation | `image.toolkit.fluxcd.io/v1` | [imageupdateautomation-image-v1.fields.txt](assets/schemas/imageupdateautomation-image-v1.fields.txt) |
 
 ## Loading References
 

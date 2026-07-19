@@ -7,7 +7,7 @@ sources:
   dest: skills/ponytail
   skills:
   - path: skills/ponytail
-    synced_sha: dedc97ca7c8a1e7463ac5b36f7fe4b28c3c435a2
+    synced_sha: 16f29800fd2681bdf24f3eb4ccffe38be3baec6b
     hold: false
   - path: skills/ponytail-audit
     synced_sha: dedc97ca7c8a1e7463ac5b36f7fe4b28c3c435a2
@@ -22,7 +22,7 @@ sources:
     synced_sha: dedc97ca7c8a1e7463ac5b36f7fe4b28c3c435a2
     hold: false
   - path: skills/ponytail-help
-    synced_sha: dedc97ca7c8a1e7463ac5b36f7fe4b28c3c435a2
+    synced_sha: 16f29800fd2681bdf24f3eb4ccffe38be3baec6b
     hold: false
 - repo: mattpocock/skills
   ref: main
@@ -32,95 +32,97 @@ sources:
   ignore: []
   skills:
   - path: skills/engineering/ask-matt
-    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
     hold: false
     dest: skills/engineering
     accept_findings:
     - MP3
   - path: skills/engineering/codebase-design
-    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
     hold: false
     dest: skills/engineering
     accept_invalid: true
   - path: skills/engineering/diagnosing-bugs
-    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
     hold: false
     dest: skills/engineering
     accept_findings:
     - P6
     accept_invalid: true
   - path: skills/engineering/domain-modeling
-    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
     hold: false
     dest: skills/engineering
     accept_invalid: true
   - path: skills/engineering/grill-with-docs
-    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
     hold: false
     dest: skills/engineering
   - path: skills/engineering/implement
-    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
     hold: false
     dest: skills/engineering
   - path: skills/engineering/improve-codebase-architecture
-    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
     hold: false
     dest: skills/engineering
     accept_invalid: true
   - path: skills/engineering/prototype
-    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
     hold: false
     dest: skills/engineering
     accept_invalid: true
   - path: skills/engineering/resolving-merge-conflicts
-    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
     hold: false
     dest: skills/engineering
   - path: skills/engineering/setup-matt-pocock-skills
-    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
     hold: false
     dest: skills/engineering
     accept_invalid: true
   - path: skills/engineering/tdd
-    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
     hold: false
     dest: skills/engineering
     accept_invalid: true
-  - path: skills/engineering/to-issues
-    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
-    hold: false
-    dest: skills/engineering
-  - path: skills/engineering/to-prd
-    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
-    hold: false
-    dest: skills/engineering
   - path: skills/engineering/triage
-    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
     hold: false
     dest: skills/engineering
     accept_invalid: true
   - path: skills/productivity/grill-me
-    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
     hold: false
     dest: skills/productivity
   - path: skills/productivity/grilling
-    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
     hold: false
     dest: skills/productivity
   - path: skills/productivity/handoff
-    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
     hold: false
     dest: skills/productivity
   - path: skills/productivity/teach
-    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
     hold: false
     dest: skills/productivity
     accept_invalid: true
   - path: skills/productivity/writing-great-skills
-    synced_sha: 6eeb81b5fcfeeb5bd531dd47ab2f9f2bbea27461
+    synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
     hold: false
     dest: skills/productivity
     accept_invalid: true
+  - path: skills/engineering/to-tickets
+    synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    hold: false
+    dest: skills/engineering
+    accept_findings:
+    - TM2
+  - path: skills/engineering/to-spec
+    synced_sha: 9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    hold: false
+    dest: skills/engineering
 - repo: multica-ai/andrej-karpathy-skills
   ref: main
   watch:
@@ -262,7 +264,7 @@ sources:
     accept_findings:
     - SC4
   - path: skills/docx
-    synced_sha: 35414756ca55738e050562e272a6bbc6273aa926
+    synced_sha: fa0fa64bdc967915dc8399e803be67759e1e62b8
     hold: false
     dest: skills/documents
     accept_findings:
@@ -276,16 +278,17 @@ sources:
     hold: false
     dest: skills/documents
   - path: skills/pptx
-    synced_sha: 35414756ca55738e050562e272a6bbc6273aa926
+    synced_sha: fa0fa64bdc967915dc8399e803be67759e1e62b8
     hold: false
     dest: skills/documents
     accept_findings:
     - E2
     - P2
     - TM1
+    - YR1
     accept_invalid: true
   - path: skills/xlsx
-    synced_sha: 35414756ca55738e050562e272a6bbc6273aa926
+    synced_sha: fa0fa64bdc967915dc8399e803be67759e1e62b8
     hold: false
     dest: skills/documents
     accept_findings:
@@ -313,13 +316,14 @@ sources:
   dest: skills/aws
   skills:
   - path: skills/core-skills/amazon-bedrock
-    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    synced_sha: 36f16570de2015c0f0ce94ba9e391bd703c9ffb7
     hold: false
     dest: skills/aws
     accept_findings:
     - E2
     - PE3
     - TM2
+    - YR4
     accept_invalid: true
   - path: skills/core-skills/aws-billing-and-cost-management
     synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
@@ -327,7 +331,7 @@ sources:
     dest: skills/aws
     accept_invalid: true
   - path: skills/core-skills/aws-cloudformation
-    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    synced_sha: 36f16570de2015c0f0ce94ba9e391bd703c9ffb7
     hold: false
     dest: skills/aws
     accept_invalid: true
@@ -337,7 +341,7 @@ sources:
     dest: skills/aws
     accept_invalid: true
   - path: skills/core-skills/aws-iam
-    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    synced_sha: 36f16570de2015c0f0ce94ba9e391bd703c9ffb7
     hold: false
     dest: skills/aws
     accept_invalid: true
@@ -347,11 +351,12 @@ sources:
     dest: skills/aws
     accept_invalid: true
   - path: skills/core-skills/aws-observability
-    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    synced_sha: 36f16570de2015c0f0ce94ba9e391bd703c9ffb7
     hold: false
     dest: skills/aws
     accept_findings:
     - TM2
+    - PE5
     accept_invalid: true
   - path: skills/core-skills/aws-sdk-python-usage
     synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
@@ -361,7 +366,7 @@ sources:
     - PE3
     accept_invalid: true
   - path: skills/core-skills/aws-serverless
-    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    synced_sha: 36f16570de2015c0f0ce94ba9e391bd703c9ffb7
     hold: false
     dest: skills/aws
     accept_findings:
@@ -376,7 +381,7 @@ sources:
     - PE3
     accept_invalid: true
   - path: skills/specialized-skills/analytics-skills/exploring-data-catalog
-    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    synced_sha: 36f16570de2015c0f0ce94ba9e391bd703c9ffb7
     hold: false
     dest: skills/aws
     accept_invalid: true
@@ -404,7 +409,7 @@ sources:
     - TM2
     accept_invalid: true
   - path: skills/specialized-skills/database-skills/exporting-rds-to-s3
-    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    synced_sha: 36f16570de2015c0f0ce94ba9e391bd703c9ffb7
     hold: false
     dest: skills/aws
     accept_findings:
@@ -416,7 +421,7 @@ sources:
     dest: skills/aws
     accept_invalid: true
   - path: skills/specialized-skills/ec2-skills/launching-ec2-instance-with-best-practices
-    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
+    synced_sha: 36f16570de2015c0f0ce94ba9e391bd703c9ffb7
     hold: false
     dest: skills/aws
     accept_findings:
@@ -510,7 +515,7 @@ sources:
   dest: skills/kubernetes
   skills:
   - path: skills/gitops-cluster-debug
-    synced_sha: 9c50a83ba3d4d1b6e0ac2d18af9ab91263094654
+    synced_sha: 569a3a536e1a97de28765c8bd1eecd20c836b326
     hold: false
     dest: skills/kubernetes
     accept_findings:
@@ -518,7 +523,7 @@ sources:
     - RA1
     accept_invalid: true
   - path: skills/gitops-knowledge
-    synced_sha: 9c50a83ba3d4d1b6e0ac2d18af9ab91263094654
+    synced_sha: 569a3a536e1a97de28765c8bd1eecd20c836b326
     hold: false
     dest: skills/kubernetes
     accept_findings:
@@ -526,7 +531,7 @@ sources:
     - RA1
     accept_invalid: true
   - path: skills/gitops-repo-audit
-    synced_sha: 9c50a83ba3d4d1b6e0ac2d18af9ab91263094654
+    synced_sha: 569a3a536e1a97de28765c8bd1eecd20c836b326
     hold: false
     dest: skills/kubernetes
     accept_findings:
@@ -628,7 +633,7 @@ sources:
   dest: skills/iac
   skills:
   - path: terraform/code-generation/skills/terraform-style-guide
-    synced_sha: 339a113935812ad75c6ff90d418b739a021826d1
+    synced_sha: 8c6573abbd21e8094fab8f538eb5f97db63133fd
     hold: false
     dest: skills/iac
   - path: terraform/code-generation/skills/terraform-test
@@ -637,12 +642,12 @@ sources:
     dest: skills/iac
     accept_invalid: true
   - path: terraform/code-generation/skills/terraform-search-import
-    synced_sha: 339a113935812ad75c6ff90d418b739a021826d1
+    synced_sha: 8c6573abbd21e8094fab8f538eb5f97db63133fd
     hold: false
     dest: skills/iac
     accept_invalid: true
   - path: terraform/module-generation/skills/refactor-module
-    synced_sha: 339a113935812ad75c6ff90d418b739a021826d1
+    synced_sha: 8c6573abbd21e8094fab8f538eb5f97db63133fd
     hold: false
     dest: skills/iac
     accept_invalid: true
