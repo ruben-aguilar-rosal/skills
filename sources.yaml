@@ -1,4 +1,15 @@
 sources:
+- repo: composio-community/awesome-agent-clis
+  ref: master
+  watch:
+  - ntn/
+  ignore: []
+  skills:
+  - path: ntn
+    synced_sha: 9f765d2dbe8d91e956311dd6a6b364bde3e902b3
+    hold: false
+    dest: skills/productivity
+    accept_invalid: true
 - repo: DietrichGebert/ponytail
   ref: main
   watch:
