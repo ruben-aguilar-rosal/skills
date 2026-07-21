@@ -723,7 +723,7 @@ sources:
   ignore: []
   skills:
   - path: skills/i-have-adhd
-    synced_sha: 72c33eee81ea439cf01991e93729adfce2ffc99e
+    synced_sha: 36b80ba73033c2211c51d057d81994ab4108d912
     hold: false
     dest: skills/productivity
     accept_invalid: true

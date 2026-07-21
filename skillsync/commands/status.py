@@ -17,8 +17,8 @@ independent, DETERMINISTIC signals (no LLM):
   few repos stays fast;
 - **drift** — whether the committed `SKILL.md` differs from its `.generated`
   snapshot (a hand-edit), reusing the reconcile stage's `detect_drift`;
-- **linked** — whether `<target_dir>/<name>` is a symlink resolving to this skill
-  folder, reusing the link command's planner.
+- **linked** — whether the target directory resolves the skill at its path
+  relative to `skills/`, including through a selected category symlink.
 
 The CLI assembles the real `GitCli` (or `None` when offline) and prints the rows.
 """
@@ -27,7 +27,9 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
-from skillsync.commands.link import Origin, _plan
+from typing import Literal
+
+Origin = Literal["vendored", "local"]
 from skillsync.config import Config, SkillPin
 from skillsync.layout import SkillLayout, discover_skills, pin_index, read_skill
 from skillsync.ports.git import GitError, GitPort
@@ -48,7 +50,7 @@ class SkillStatus:
     if local/unpinned); `upstream_ahead` is True/False from the git port or `None`
     when undetermined (offline / git error / local / no pin); `drift` is True when
     SKILL.md was hand-edited away from its snapshot; `linked` is True when the skill
-    is symlinked into the target skills dir.
+    is reachable below the target skills dir through its category link.
     """
 
     name: str
@@ -85,7 +87,7 @@ def gather_status(
         context = (
             _PinContext(match[0].repo, match[0].ref, match[1]) if match else None
         )
-        rows.append(_status_one(layout, context, heads, target_dir))
+        rows.append(_status_one(layout, context, heads, target_dir, root))
     return rows
 
 
@@ -130,6 +132,7 @@ def _status_one(
     context: "_PinContext | None",
     heads: dict[tuple[str, str], str | None],
     target_dir: Path,
+    root: Path,
 ) -> SkillStatus:
     """Assemble the status signals for one on-disk skill (vendored or local).
 
@@ -143,7 +146,7 @@ def _status_one(
         synced_sha=_short(pin.synced_sha) if pin else None,
         upstream_ahead=_upstream_ahead(context, heads),
         drift=detect_drift(read_skill(layout)) is not None,
-        linked=_is_linked(layout, target_dir),
+        linked=_is_linked(layout, target_dir, root),
     )
 
 
@@ -170,7 +173,8 @@ def _upstream_ahead(
     return head != context.pin.synced_sha
 
 
-def _is_linked(layout: SkillLayout, target_dir: Path) -> bool:
-    """Return True when `<target_dir>/<name>` symlinks to this skill folder."""
+def _is_linked(layout: SkillLayout, target_dir: Path, root: Path) -> bool:
+    """Return True when the target exposes this skill at its `skills/` path."""
     source = layout.root.resolve()
-    return _plan(target_dir / layout.name, source) == "unchanged"
+    target_path = target_dir / layout.root.relative_to(root / "skills")
+    return target_path.is_dir() and target_path.resolve() == source

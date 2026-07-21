@@ -48,7 +48,7 @@ uv pip install -e .          # or: pip install -e .
 | `skillsync accept <repo> <skill-path> [--findings P1,SC2] [--invalid]` | Record reviewed-and-accepted security findings and/or a validation failure for a skill, so it stops being quarantined/blocked. Narrow and auditable — a new finding still blocks. Re-run `add`/`sync` after. |
 | `skillsync regen <name> [--force]` | Regenerate one skill's `SKILL.md` from its on-disk `.upstream/` + `adaptation.md` (a full rebuild; never bumps `synced_sha`). |
 | `skillsync reprofile` | Re-bake the current `profile.md` into every skill's `adaptation.md`, one PR per skill. |
-| `skillsync link [--dry-run]` | Symlink every skill folder under `skills/` (vendored **and** local) into the native skills dir (`$SKILLSYNC_LINK_DIR`, else `~/.claude/skills`). Idempotent; tags each `(vendored)`/`(local)`; skips non-symlink conflicts. |
+| `skillsync link --skill-set <name>... [--dry-run]` | Symlink selected top-level `skills/<name>/` directories into the shared Agent Skills dir (`$SKILLSYNC_LINK_DIR`, else `~/.agents/skills`). Reconciles stale repository-owned category links; preserves real paths and external symlinks. |
 | `skillsync status [--offline]` | Per skill: origin (`vendored`/`local`), short `synced_sha`, upstream-ahead, `SKILL.md`-vs-`.generated` drift, and link state. |
 | `skillsync validate <name>` | Validate a skill's on-disk `SKILL.md` (frontmatter, `name`==dir, size, referenced files). |
 | `skillsync detect` | Detect upstream changes per skill and print a name → kind table. |
@@ -108,23 +108,24 @@ sources:
 ```
 
 `skillsync add <repo> <path> --dest skills/aily` records the `dest` on the new pin for you.
-`status` and `link` discover skills by walking `skills/` (see below), so a skill is found
-wherever it lives regardless of its `dest`.
+`status` discovers skills by walking `skills/` (see below), so a skill is found wherever it
+lives regardless of its `dest`. `link` activates selected direct children of `skills/`, which
+preserves the category layout in the shared Agent Skills directory.
 
 ### Your own (local) skills
 
 Not every skill has to come from upstream. A **local skill** is any folder under `skills/`
 with a `SKILL.md` that isn't tracked in `sources.yaml` — hand-written here, no mirror, no pin.
 
-`link` and `status` enumerate skills from the **filesystem**, not from `sources.yaml`, so a
-local skill needs **no registration**: create `skills/<category>/<name>/SKILL.md`, run
-`skillsync link`, and it's symlinked like any vendored skill. Both commands tag each skill by
-origin so the two never get confused:
+`status` enumerates skills from the **filesystem**, not from `sources.yaml`, so a local skill
+needs **no registration**: create `skills/<category>/<name>/SKILL.md`, then activate its
+category with `skillsync link --skill-set <category>`. The category symlink makes vendored and
+local skills inside it available together, while `status` tags each skill by origin:
 
 ```
-$ skillsync link
-taste-skill           unchanged  (vendored)
-vendor-remote-skills  create     (local)
+$ skillsync link --skill-set ui --skill-set meta
+meta  create
+ui    unchanged
 
 $ skillsync status --offline
 taste-skill           vendored  06d6028  upstream=?  clean  linked
@@ -165,14 +166,23 @@ prompt stays a discrete argv element (no shell interpolation). The deterministic
 
 ## Consumption
 
-Personal use via symlink into the native skills dir:
+Activate only the skill categories you want native consumers to load:
 
 ```sh
-skillsync link    # every skills/**/<name>/ (vendored + local) -> ~/.claude/skills/<name>
+skillsync link \
+  --skill-set documents \
+  --skill-set engineering \
+  --skill-set meta \
+  --skill-set ponytail \
+  --skill-set productivity \
+  --skill-set slack
 ```
 
-`link` walks the whole `skills/` tree, so it picks up vendored and local skills in one pass.
-Re-run it after adding any new skill (it's idempotent — unchanged links are left alone).
+Each selected `skills/<category>/` becomes `~/.agents/skills/<category>` (or a directory chosen
+by `SKILLSYNC_LINK_DIR`). Re-run the command whenever the desired selection changes: it refreshes
+selected links and removes only stale category symlinks that point directly into this repository.
+It never deletes regular target paths or external symlinks. `sync` remains independent and
+continues to process the complete configured library.
 
 ## Architecture
 

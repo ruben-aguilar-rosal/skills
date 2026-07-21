@@ -11,7 +11,7 @@ from skillsync.commands.accept import AcceptError, run_accept
 from skillsync.commands.add import run_add
 from skillsync.commands.discovery import DiscoveryNotice, surface_discoveries
 from skillsync.commands.ignore import IgnoreError, run_ignore
-from skillsync.commands.link import default_target_dir, run_link
+from skillsync.commands.link import LinkError, default_target_dir, run_link
 from skillsync.commands.regen import run_regen
 from skillsync.commands.reprofile import ReprofileOutcome, run_reprofile
 from skillsync.commands.status import SkillStatus, gather_status
@@ -169,8 +169,8 @@ def _print_status(rows: list[SkillStatus]) -> None:
 
 @app.command(name="link")
 def link_cmd(
-    config_path: Path = typer.Option(
-        Path("sources.yaml"), "--config", help="Path to sources.yaml."
+    skill_set: list[str] = typer.Option(
+        ..., "--skill-set", help="Top-level directory under skills/ to activate; repeatable."
     ),
     root: Path = typer.Option(
         Path("."), help="Repo root containing the skills/ directory."
@@ -179,21 +179,24 @@ def link_cmd(
         False, "--dry-run", help="Print planned actions without changing anything."
     ),
 ) -> None:
-    """Symlink each configured skill folder into the native skills dir.
+    """Symlink selected skill-set directories into the shared Agent Skills dir.
 
-    Skills are resolved under their configured `dest` dirs from sources.yaml (when
-    present); without a config it falls back to scanning the default `skills/` dir.
-    The target dir is `$SKILLSYNC_LINK_DIR` if set, else `~/.claude/skills`. A real
-    (non-symlink) path already occupying a slot is skipped with a warning and never
-    clobbered. `--dry-run` prints the plan without touching the filesystem.
+    Every selected set becomes `<target>/<set> -> <root>/skills/<set>`. The target
+    is `$SKILLSYNC_LINK_DIR` if set, else `~/.agents/skills`. Stale symlinks that
+    point directly into this repository's `skills/` directory are removed; real
+    paths and external symlinks are never clobbered. `--dry-run` prints the plan
+    without touching the filesystem.
     """
-    config = load_config(config_path) if config_path.exists() else None
-    actions = run_link(
-        root, target_dir=default_target_dir(), config=config, dry_run=dry_run
-    )
-    if not actions:
-        typer.echo("no skills found under skills/")
-        return
+    try:
+        actions = run_link(
+            root,
+            target_dir=default_target_dir(),
+            skill_sets=set(skill_set),
+            dry_run=dry_run,
+        )
+    except LinkError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
 
     prefix = "would " if dry_run else ""
     width = max(len(a.name) for a in actions)
@@ -205,9 +208,7 @@ def link_cmd(
                 err=True,
             )
             continue
-        typer.echo(
-            f"{action.name.ljust(width)}  {prefix}{action.action}  ({action.origin})"
-        )
+        typer.echo(f"{action.name.ljust(width)}  {prefix}{action.action}")
 
 
 @app.command(name="detect")
