@@ -58,26 +58,44 @@ def test_status_no_drift_when_skill_matches_snapshot(tmp_path: Path) -> None:
     assert row.drift is False
 
 
-def test_status_reports_linked_state(tmp_path: Path) -> None:
-    """A skill symlinked into the target dir reports `linked=True`."""
-    write_text(tmp_path / "skills" / "demo" / "SKILL.md", "x\n")
+def test_status_reports_linked_state_through_category_symlink(tmp_path: Path) -> None:
+    """A nested skill is linked when its category is symlinked into the target."""
+    write_text(tmp_path / "skills" / "documents" / "demo" / "SKILL.md", "x\n")
     target = tmp_path / "links"
     target.mkdir()
-    (target / "demo").symlink_to((tmp_path / "skills" / "demo").resolve())
-    config = _config("demo", "abc1234")
+    (target / "documents").symlink_to((tmp_path / "skills" / "documents").resolve())
+    config = Config(
+        sources=[
+            Source(
+                repo="owner/repo",
+                ref="main",
+                dest="skills/documents",
+                skills=[SkillPin(path="upstream/demo", synced_sha="abc1234")],
+            )
+        ]
+    )
 
     [row] = gather_status(config, tmp_path, git=None, target_dir=target)
 
     assert row.linked is True
 
 
-def test_status_unlinked_when_symlink_points_elsewhere(tmp_path: Path) -> None:
-    """A symlink pointing at a different folder does not count as linked."""
-    write_text(tmp_path / "skills" / "demo" / "SKILL.md", "x\n")
+def test_status_unlinked_when_category_symlink_points_elsewhere(tmp_path: Path) -> None:
+    """A category symlink pointing elsewhere does not count as linked."""
+    write_text(tmp_path / "skills" / "documents" / "demo" / "SKILL.md", "x\n")
     target = tmp_path / "links"
     target.mkdir()
-    (target / "demo").symlink_to(tmp_path / "somewhere-else")
-    config = _config("demo", "abc1234")
+    (target / "documents").symlink_to(tmp_path / "somewhere-else")
+    config = Config(
+        sources=[
+            Source(
+                repo="owner/repo",
+                ref="main",
+                dest="skills/documents",
+                skills=[SkillPin(path="upstream/demo", synced_sha="abc1234")],
+            )
+        ]
+    )
 
     [row] = gather_status(config, tmp_path, git=None, target_dir=target)
 

@@ -112,36 +112,42 @@ def test_status_reports_no_skills(tmp_path: Path) -> None:
     assert "no skills" in result.stdout.lower()
 
 
-def test_link_symlinks_skills_into_target_dir(
+def test_link_symlinks_selected_sets_into_target_dir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`skillsync link` symlinks each skill into the env-overridden target dir."""
-    write_text(tmp_path / "skills" / "demo" / "SKILL.md", "# demo\n")
-    target = tmp_path / "claude_skills"
+    """`skillsync link` activates requested skill sets in the overridden target."""
+    write_text(tmp_path / "skills" / "documents" / "demo" / "SKILL.md", "# demo\n")
+    target = tmp_path / "agent_skills"
     monkeypatch.setenv("SKILLSYNC_LINK_DIR", str(target))
 
-    # No config at this path → link falls back to scanning the default skills/ dir.
     result = RUNNER.invoke(
-        app, ["link", "--root", str(tmp_path), "--config", str(tmp_path / "none.yaml")]
+        app, ["link", "--root", str(tmp_path), "--skill-set", "documents"]
     )
 
     assert result.exit_code == 0
-    assert "demo" in result.stdout
-    assert "(local)" in result.stdout  # no pin → reported local
-    assert (target / "demo").is_symlink()
+    assert "documents" in result.stdout
+    assert (target / "documents").resolve() == (tmp_path / "skills" / "documents").resolve()
+
+
+def test_link_requires_skill_set(tmp_path: Path) -> None:
+    """`skillsync link` rejects an unscoped activation request."""
+    result = RUNNER.invoke(app, ["link", "--root", str(tmp_path)])
+
+    assert result.exit_code != 0
+    assert "--skill-set" in result.output
 
 
 def test_link_dry_run_makes_no_changes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """`skillsync link --dry-run` prints the plan without touching the filesystem."""
-    write_text(tmp_path / "skills" / "demo" / "SKILL.md", "# demo\n")
-    target = tmp_path / "claude_skills"
+    write_text(tmp_path / "skills" / "documents" / "demo" / "SKILL.md", "# demo\n")
+    target = tmp_path / "agent_skills"
     monkeypatch.setenv("SKILLSYNC_LINK_DIR", str(target))
 
     result = RUNNER.invoke(
         app,
-        ["link", "--root", str(tmp_path), "--config", str(tmp_path / "none.yaml"), "--dry-run"],
+        ["link", "--root", str(tmp_path), "--skill-set", "documents", "--dry-run"],
     )
 
     assert result.exit_code == 0
