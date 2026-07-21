@@ -130,13 +130,14 @@ first `SKILL.md` — all in the onboarding PR. You refine the draft and regenera
 
 ## Consumption
 
-Personal use activates selected top-level skill sets in the shared Agent Skills dir:
+Personal use selects top-level skill sets, then exposes every skill in them as a direct entry in
+the shared Agent Skills dir so Claude Code can discover it:
 ```
 skillsync link --skill-set documents --skill-set engineering --skill-set meta
-# ln -s skills/<set> -> ~/.agents/skills/<set>
+# ln -s skills/<set>/<skill> -> ~/.agents/skills/<skill>
 ```
-Re-run with the desired selection to remove stale repository-owned category links. No
-plugin/marketplace manifest (can be added later if sharing is ever wanted).
+Re-run with the desired selection to remove stale repository-owned direct links and migrate old
+category links. No plugin/marketplace manifest (can be added later if sharing is ever wanted).
 
 ---
 
@@ -146,7 +147,7 @@ skillsync add <repo> <skill-path>   # onboard a new upstream skill (draft adapta
 skillsync sync [--skill <name>]     # detect -> gate -> reconcile -> patch -> verify -> validate -> PR
 skillsync regen <name> [--force]    # regenerate SKILL.md (--force = full rewrite)
 skillsync reprofile                 # re-bake current profile.md into every adaptation.md (reviewed PR)
-skillsync link --skill-set <name>   # activate a selected set in ~/.agents/skills
+skillsync link --skill-set <name>   # expose a selected set's skills directly in ~/.agents/skills
 skillsync status                    # show drift + pending upstream changes
 ```
 

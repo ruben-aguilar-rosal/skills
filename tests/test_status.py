@@ -58,12 +58,13 @@ def test_status_no_drift_when_skill_matches_snapshot(tmp_path: Path) -> None:
     assert row.drift is False
 
 
-def test_status_reports_linked_state_through_category_symlink(tmp_path: Path) -> None:
-    """A nested skill is linked when its category is symlinked into the target."""
-    write_text(tmp_path / "skills" / "documents" / "demo" / "SKILL.md", "x\n")
+def test_status_reports_linked_state_through_direct_skill_symlink(tmp_path: Path) -> None:
+    """A skill is linked when its direct global entry resolves to its folder."""
+    skill = tmp_path / "skills" / "documents" / "demo"
+    write_text(skill / "SKILL.md", "x\n")
     target = tmp_path / "links"
     target.mkdir()
-    (target / "documents").symlink_to((tmp_path / "skills" / "documents").resolve())
+    (target / "demo").symlink_to(skill.resolve())
     config = Config(
         sources=[
             Source(
@@ -80,12 +81,12 @@ def test_status_reports_linked_state_through_category_symlink(tmp_path: Path) ->
     assert row.linked is True
 
 
-def test_status_unlinked_when_category_symlink_points_elsewhere(tmp_path: Path) -> None:
-    """A category symlink pointing elsewhere does not count as linked."""
+def test_status_unlinked_when_direct_skill_symlink_points_elsewhere(tmp_path: Path) -> None:
+    """A direct skill link pointing elsewhere does not count as linked."""
     write_text(tmp_path / "skills" / "documents" / "demo" / "SKILL.md", "x\n")
     target = tmp_path / "links"
     target.mkdir()
-    (target / "documents").symlink_to(tmp_path / "somewhere-else")
+    (target / "demo").symlink_to(tmp_path / "somewhere-else")
     config = Config(
         sources=[
             Source(
@@ -98,6 +99,18 @@ def test_status_unlinked_when_category_symlink_points_elsewhere(tmp_path: Path) 
     )
 
     [row] = gather_status(config, tmp_path, git=None, target_dir=target)
+
+    assert row.linked is False
+
+
+def test_status_unlinked_through_legacy_category_symlink(tmp_path: Path) -> None:
+    """A legacy category symlink no longer counts as a Claude Code-compatible link."""
+    write_text(tmp_path / "skills" / "documents" / "demo" / "SKILL.md", "x\n")
+    target = tmp_path / "links"
+    target.mkdir()
+    (target / "documents").symlink_to((tmp_path / "skills" / "documents").resolve())
+
+    [row] = gather_status(Config(sources=[]), tmp_path, git=None, target_dir=target)
 
     assert row.linked is False
 

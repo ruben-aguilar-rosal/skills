@@ -112,10 +112,10 @@ def test_status_reports_no_skills(tmp_path: Path) -> None:
     assert "no skills" in result.stdout.lower()
 
 
-def test_link_symlinks_selected_sets_into_target_dir(
+def test_link_symlinks_selected_skills_directly_into_target_dir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`skillsync link` activates requested skill sets in the overridden target."""
+    """`skillsync link` exposes every selected skill in the overridden target."""
     write_text(tmp_path / "skills" / "documents" / "demo" / "SKILL.md", "# demo\n")
     target = tmp_path / "agent_skills"
     monkeypatch.setenv("SKILLSYNC_LINK_DIR", str(target))
@@ -125,8 +125,9 @@ def test_link_symlinks_selected_sets_into_target_dir(
     )
 
     assert result.exit_code == 0
-    assert "documents" in result.stdout
-    assert (target / "documents").resolve() == (tmp_path / "skills" / "documents").resolve()
+    assert "demo" in result.stdout
+    assert (target / "demo").resolve() == (tmp_path / "skills" / "documents" / "demo").resolve()
+    assert not (target / "documents").exists()
 
 
 def test_link_requires_skill_set(tmp_path: Path) -> None:

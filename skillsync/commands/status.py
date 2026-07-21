@@ -17,8 +17,8 @@ independent, DETERMINISTIC signals (no LLM):
   few repos stays fast;
 - **drift** — whether the committed `SKILL.md` differs from its `.generated`
   snapshot (a hand-edit), reusing the reconcile stage's `detect_drift`;
-- **linked** — whether the target directory resolves the skill at its path
-  relative to `skills/`, including through a selected category symlink.
+- **linked** — whether the target directory has a direct link named for the skill
+  that resolves to its skill folder.
 
 The CLI assembles the real `GitCli` (or `None` when offline) and prints the rows.
 """
@@ -50,7 +50,7 @@ class SkillStatus:
     if local/unpinned); `upstream_ahead` is True/False from the git port or `None`
     when undetermined (offline / git error / local / no pin); `drift` is True when
     SKILL.md was hand-edited away from its snapshot; `linked` is True when the skill
-    is reachable below the target skills dir through its category link.
+    is reachable through a direct entry in the target skills dir.
     """
 
     name: str
@@ -174,7 +174,7 @@ def _upstream_ahead(
 
 
 def _is_linked(layout: SkillLayout, target_dir: Path, root: Path) -> bool:
-    """Return True when the target exposes this skill at its `skills/` path."""
+    """Return True when the target exposes this skill as a direct named entry."""
     source = layout.root.resolve()
-    target_path = target_dir / layout.root.relative_to(root / "skills")
+    target_path = target_dir / layout.name
     return target_path.is_dir() and target_path.resolve() == source

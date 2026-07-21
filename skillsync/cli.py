@@ -170,7 +170,7 @@ def _print_status(rows: list[SkillStatus]) -> None:
 @app.command(name="link")
 def link_cmd(
     skill_set: list[str] = typer.Option(
-        ..., "--skill-set", help="Top-level directory under skills/ to activate; repeatable."
+        ..., "--skill-set", help="Top-level directory under skills/ whose skills to activate; repeatable."
     ),
     root: Path = typer.Option(
         Path("."), help="Repo root containing the skills/ directory."
@@ -179,13 +179,13 @@ def link_cmd(
         False, "--dry-run", help="Print planned actions without changing anything."
     ),
 ) -> None:
-    """Symlink selected skill-set directories into the shared Agent Skills dir.
+    """Symlink skills from selected sets into the shared Agent Skills dir.
 
-    Every selected set becomes `<target>/<set> -> <root>/skills/<set>`. The target
-    is `$SKILLSYNC_LINK_DIR` if set, else `~/.agents/skills`. Stale symlinks that
-    point directly into this repository's `skills/` directory are removed; real
-    paths and external symlinks are never clobbered. `--dry-run` prints the plan
-    without touching the filesystem.
+    Every discovered selected skill becomes `<target>/<skill> -> <root>/skills/.../<skill>`.
+    The target is `$SKILLSYNC_LINK_DIR` if set, else `~/.agents/skills`. Stale direct
+    repository skill links and old category links are removed; real paths and external
+    symlinks are never clobbered. `--dry-run` prints the plan without touching the
+    filesystem.
     """
     try:
         actions = run_link(

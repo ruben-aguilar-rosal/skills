@@ -48,7 +48,7 @@ uv pip install -e .          # or: pip install -e .
 | `skillsync accept <repo> <skill-path> [--findings P1,SC2] [--invalid]` | Record reviewed-and-accepted security findings and/or a validation failure for a skill, so it stops being quarantined/blocked. Narrow and auditable — a new finding still blocks. Re-run `add`/`sync` after. |
 | `skillsync regen <name> [--force]` | Regenerate one skill's `SKILL.md` from its on-disk `.upstream/` + `adaptation.md` (a full rebuild; never bumps `synced_sha`). |
 | `skillsync reprofile` | Re-bake the current `profile.md` into every skill's `adaptation.md`, one PR per skill. |
-| `skillsync link --skill-set <name>... [--dry-run]` | Symlink selected top-level `skills/<name>/` directories into the shared Agent Skills dir (`$SKILLSYNC_LINK_DIR`, else `~/.agents/skills`). Reconciles stale repository-owned category links; preserves real paths and external symlinks. |
+| `skillsync link --skill-set <name>... [--dry-run]` | Symlink each skill inside selected top-level `skills/<name>/` categories directly into the shared Agent Skills dir (`$SKILLSYNC_LINK_DIR`, else `~/.agents/skills`) for Claude Code discovery. Migrates old category links and reconciles stale repository-owned direct links; preserves real paths and external symlinks. |
 | `skillsync status [--offline]` | Per skill: origin (`vendored`/`local`), short `synced_sha`, upstream-ahead, `SKILL.md`-vs-`.generated` drift, and link state. |
 | `skillsync validate <name>` | Validate a skill's on-disk `SKILL.md` (frontmatter, `name`==dir, size, referenced files). |
 | `skillsync detect` | Detect upstream changes per skill and print a name → kind table. |
@@ -109,8 +109,8 @@ sources:
 
 `skillsync add <repo> <path> --dest skills/aily` records the `dest` on the new pin for you.
 `status` discovers skills by walking `skills/` (see below), so a skill is found wherever it
-lives regardless of its `dest`. `link` activates selected direct children of `skills/`, which
-preserves the category layout in the shared Agent Skills directory.
+lives regardless of its `dest`. `link` selects direct category children of `skills/`, then
+exposes every discovered skill as a direct entry in the shared Agent Skills directory.
 
 ### Your own (local) skills
 
@@ -119,8 +119,8 @@ with a `SKILL.md` that isn't tracked in `sources.yaml` — hand-written here, no
 
 `status` enumerates skills from the **filesystem**, not from `sources.yaml`, so a local skill
 needs **no registration**: create `skills/<category>/<name>/SKILL.md`, then activate its
-category with `skillsync link --skill-set <category>`. The category symlink makes vendored and
-local skills inside it available together, while `status` tags each skill by origin:
+category with `skillsync link --skill-set <category>`. The command creates one direct link per
+vendored or local skill inside it, while `status` tags each skill by origin:
 
 ```
 $ skillsync link --skill-set ui --skill-set meta
@@ -178,11 +178,12 @@ skillsync link \
   --skill-set slack
 ```
 
-Each selected `skills/<category>/` becomes `~/.agents/skills/<category>` (or a directory chosen
-by `SKILLSYNC_LINK_DIR`). Re-run the command whenever the desired selection changes: it refreshes
-selected links and removes only stale category symlinks that point directly into this repository.
-It never deletes regular target paths or external symlinks. `sync` remains independent and
-continues to process the complete configured library.
+Each discovered skill in a selected category becomes a direct Claude Code-compatible link, for
+example `skills/engineering/code-review/` becomes `~/.agents/skills/code-review` (or a directory
+chosen by `SKILLSYNC_LINK_DIR`). Re-run the command whenever the desired selection changes: it
+refreshes selected direct links, removes stale repository-owned direct links, and migrates legacy
+category symlinks. It never deletes regular target paths or external symlinks. `sync` remains
+independent and continues to process the complete configured library.
 
 ## Architecture
 
