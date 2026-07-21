@@ -17,6 +17,7 @@ web artifacts, handing off context, and learning.
 | `grill-me` | A relentless plan/design interview (user-invoked). |
 | `grilling` | Interview you relentlessly to stress-test a plan or design before building. |
 | `handoff` | Compact the current conversation into a handoff doc for another agent. |
+| `humanizer` | Edit prose to remove AI-writing tells while preserving its intended voice. |
 | `i-have-adhd` | Shape output for an ADHD reader: lead with the next action, number steps, restate state each turn, suppress tangents, give concrete time estimates. *(ayghri)* |
 | `teach` | Teach you a new skill or concept within this workspace. |
 | `web-artifacts-builder` | Build elaborate multi-component claude.ai HTML artifacts (React, Tailwind, shadcn/ui) — good for interactive web reports. *(anthropics)* |
