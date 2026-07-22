@@ -1,0 +1,3 @@
+interface:
+  display_name: "Perplexity Search"
+  short_description: "Research the web with the Perplexity CLI"
