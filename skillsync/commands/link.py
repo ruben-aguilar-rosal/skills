@@ -6,11 +6,13 @@ Claude Code only discovers immediate children of its skills directory, so catego
 must be flattened at the link boundary while the repository retains its organized
 nested layout.
 
-The command safely migrates old category links and reconciles stale direct links it
-owns. A link is owned when it either points to a direct child of this repository's
-``skills/`` directory (the legacy category layout), or its basename matches a known
-skill name and it points at that skill folder. Real paths, external symlinks, and
-repository links with noncanonical names are never clobbered or removed.
+By default the command safely migrates old category links and reconciles stale direct
+links it owns. With append mode, it only creates or refreshes selected links and leaves
+all unselected target entries alone. A link is owned when it either points to a direct
+child of this repository's ``skills/`` directory (the legacy category layout), or its
+basename matches a known skill name and it points at that skill folder. Real paths,
+external symlinks, and repository links with noncanonical names are never clobbered or
+removed.
 """
 
 import os
@@ -59,15 +61,17 @@ def run_link(
     *,
     target_dir: Path,
     skill_sets: set[str],
+    append: bool = False,
     dry_run: bool = False,
 ) -> list[LinkAction]:
     """Expose every skill in selected direct children of ``root/skills``.
 
     All selected categories, their discovered skills, and their global names are
     validated before ``target_dir`` is created or any link changes. Selected skills
-    are linked directly at ``target_dir / <skill-name>``. Repository-owned links for
-    skills outside the selection and legacy category links are removed. With
-    ``dry_run=True`` no filesystem changes are made — not even creating ``target_dir``.
+    are linked directly at ``target_dir / <skill-name>``. By default repository-owned
+    links outside the selection and legacy category links are removed; ``append=True``
+    preserves them. With ``dry_run=True`` no filesystem changes are made — not even
+    creating ``target_dir``.
     """
     selected = _selected_skills(root, skill_sets)
     skills_dir = (root / "skills").resolve()
@@ -77,9 +81,10 @@ def run_link(
         _action_for_selected(name, source, target_dir)
         for name, source in sorted(selected.items())
     ]
-    actions.extend(
-        _stale_actions(target_dir, skills_dir, known_skills, set(selected))
-    )
+    if not append:
+        actions.extend(
+            _stale_actions(target_dir, skills_dir, known_skills, set(selected))
+        )
 
     if not dry_run:
         target_dir.mkdir(parents=True, exist_ok=True)
