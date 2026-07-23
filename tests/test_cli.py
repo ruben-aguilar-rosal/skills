@@ -1,5 +1,6 @@
 """Tests for the skillsync CLI skeleton."""
 
+import re
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,7 @@ def _patch_scanner(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 RUNNER = CliRunner()
+_ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
 def test_resolve_claude_command_defaults_to_none() -> None:
@@ -135,7 +137,31 @@ def test_link_requires_skill_set(tmp_path: Path) -> None:
     result = RUNNER.invoke(app, ["link", "--root", str(tmp_path)])
 
     assert result.exit_code != 0
-    assert "--skill-set" in result.output
+    assert "--skill-set" in _ANSI_ESCAPE.sub("", result.output)
+
+
+def test_link_append_preserves_existing_skills(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`skillsync link --append` activates a set without deactivating prior links."""
+    documents = tmp_path / "skills" / "documents" / "demo"
+    engineering = tmp_path / "skills" / "engineering" / "existing"
+    write_text(documents / "SKILL.md", "# demo\n")
+    write_text(engineering / "SKILL.md", "# existing\n")
+    target = tmp_path / "agent_skills"
+    target.mkdir()
+    (target / "existing").symlink_to(engineering)
+    monkeypatch.setenv("SKILLSYNC_LINK_DIR", str(target))
+
+    result = RUNNER.invoke(
+        app,
+        ["link", "--root", str(tmp_path), "--skill-set", "documents", "--append"],
+    )
+
+    assert result.exit_code == 0
+    assert "demo" in result.stdout
+    assert (target / "demo").resolve() == documents.resolve()
+    assert (target / "existing").resolve() == engineering.resolve()
 
 
 def test_link_dry_run_makes_no_changes(

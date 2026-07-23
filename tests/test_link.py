@@ -111,6 +111,65 @@ def test_link_removes_unselected_direct_repository_skill_link(tmp_path: Path) ->
     assert not (target / "code-review").exists()
 
 
+def test_link_append_preserves_unselected_repository_links(tmp_path: Path) -> None:
+    """Append mode adds selected skills without deactivating existing ones."""
+    documents = _seed_skill_set(tmp_path, "documents", "docx")
+    engineering = _seed_skill_set(tmp_path, "engineering", "code-review")
+    target = tmp_path / "agent_skills"
+    target.mkdir()
+    (target / "code-review").symlink_to(engineering["code-review"])
+
+    actions = run_link(
+        tmp_path,
+        target_dir=target,
+        skill_sets={"documents"},
+        append=True,
+    )
+
+    assert [(action.name, action.action) for action in actions] == [("docx", "create")]
+    assert (target / "docx").resolve() == documents["docx"]
+    assert (target / "code-review").resolve() == engineering["code-review"]
+
+
+def test_link_append_preserves_legacy_category_links(tmp_path: Path) -> None:
+    """Append mode leaves old category links outside its selected skills alone."""
+    documents = _seed_skill_set(tmp_path, "documents", "docx")
+    _seed_skill_set(tmp_path, "engineering", "code-review")
+    target = tmp_path / "agent_skills"
+    target.mkdir()
+    legacy = target / "engineering"
+    legacy.symlink_to(tmp_path / "skills" / "engineering")
+
+    actions = run_link(
+        tmp_path,
+        target_dir=target,
+        skill_sets={"documents"},
+        append=True,
+    )
+
+    assert [(action.name, action.action) for action in actions] == [("docx", "create")]
+    assert (target / "docx").resolve() == documents["docx"]
+    assert legacy.is_symlink()
+
+
+def test_link_append_refreshes_selected_stale_link(tmp_path: Path) -> None:
+    """Append mode still repairs a selected link that points elsewhere."""
+    documents = _seed_skill_set(tmp_path, "documents", "docx")
+    target = tmp_path / "agent_skills"
+    target.mkdir()
+    (target / "docx").symlink_to(tmp_path / "elsewhere")
+
+    actions = run_link(
+        tmp_path,
+        target_dir=target,
+        skill_sets={"documents"},
+        append=True,
+    )
+
+    assert [(action.name, action.action) for action in actions] == [("docx", "update")]
+    assert (target / "docx").resolve() == documents["docx"]
+
+
 def test_link_migrates_legacy_category_links(tmp_path: Path) -> None:
     """A normal run replaces legacy category links with direct skill links."""
     documents = _seed_skill_set(tmp_path, "documents", "docx", "pdf")
@@ -190,6 +249,28 @@ def test_link_dry_run_makes_no_changes(tmp_path: Path) -> None:
     assert not (target / "docx").exists()
     assert (target / "documents").resolve() == tmp_path / "skills" / "documents"
     assert documents["docx"].is_dir()
+
+
+def test_link_append_dry_run_reports_no_removals(tmp_path: Path) -> None:
+    """Append dry-run reports selected changes while preserving every existing link."""
+    _seed_skill_set(tmp_path, "documents", "docx")
+    engineering = _seed_skill_set(tmp_path, "engineering", "code-review")
+    target = tmp_path / "agent_skills"
+    target.mkdir()
+    existing = target / "code-review"
+    existing.symlink_to(engineering["code-review"])
+
+    actions = run_link(
+        tmp_path,
+        target_dir=target,
+        skill_sets={"documents"},
+        append=True,
+        dry_run=True,
+    )
+
+    assert [(action.name, action.action) for action in actions] == [("docx", "create")]
+    assert not (target / "docx").exists()
+    assert existing.resolve() == engineering["code-review"]
 
 
 def test_link_rejects_empty_unknown_or_empty_category_before_mutating(

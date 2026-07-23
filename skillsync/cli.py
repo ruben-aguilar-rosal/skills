@@ -175,6 +175,11 @@ def link_cmd(
     root: Path = typer.Option(
         Path("."), help="Repo root containing the skills/ directory."
     ),
+    append: bool = typer.Option(
+        False,
+        "--append",
+        help="Create or refresh selected links without removing existing links.",
+    ),
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Print planned actions without changing anything."
     ),
@@ -182,16 +187,17 @@ def link_cmd(
     """Symlink skills from selected sets into the shared Agent Skills dir.
 
     Every discovered selected skill becomes `<target>/<skill> -> <root>/skills/.../<skill>`.
-    The target is `$SKILLSYNC_LINK_DIR` if set, else `~/.agents/skills`. Stale direct
-    repository skill links and old category links are removed; real paths and external
-    symlinks are never clobbered. `--dry-run` prints the plan without touching the
-    filesystem.
+    The target is `$SKILLSYNC_LINK_DIR` if set, else `~/.agents/skills`. By default,
+    stale repository skill links and old category links are removed. `--append` instead
+    preserves every unselected entry. Real paths and external symlinks are never
+    clobbered. `--dry-run` prints the plan without touching the filesystem.
     """
     try:
         actions = run_link(
             root,
             target_dir=default_target_dir(),
             skill_sets=set(skill_set),
+            append=append,
             dry_run=dry_run,
         )
     except LinkError as exc:

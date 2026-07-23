@@ -48,7 +48,7 @@ uv pip install -e .          # or: pip install -e .
 | `skillsync accept <repo> <skill-path> [--findings P1,SC2] [--invalid]` | Record reviewed-and-accepted security findings and/or a validation failure for a skill, so it stops being quarantined/blocked. Narrow and auditable — a new finding still blocks. Re-run `add`/`sync` after. |
 | `skillsync regen <name> [--force]` | Regenerate one skill's `SKILL.md` from its on-disk `.upstream/` + `adaptation.md` (a full rebuild; never bumps `synced_sha`). |
 | `skillsync reprofile` | Re-bake the current `profile.md` into every skill's `adaptation.md`, one PR per skill. |
-| `skillsync link --skill-set <name>... [--dry-run]` | Symlink each skill inside selected top-level `skills/<name>/` categories directly into the shared Agent Skills dir (`$SKILLSYNC_LINK_DIR`, else `~/.agents/skills`) for Claude Code discovery. Migrates old category links and reconciles stale repository-owned direct links; preserves real paths and external symlinks. |
+| `skillsync link --skill-set <name>... [--append] [--dry-run]` | Symlink each skill inside selected top-level `skills/<name>/` categories directly into the shared Agent Skills dir (`$SKILLSYNC_LINK_DIR`, else `~/.agents/skills`) for Claude Code discovery. The default reconciles the complete selection; `--append` creates or refreshes selected links without deactivating existing ones. Preserves real paths and external symlinks. |
 | `skillsync status [--offline]` | Per skill: origin (`vendored`/`local`), short `synced_sha`, upstream-ahead, `SKILL.md`-vs-`.generated` drift, and link state. |
 | `skillsync validate <name>` | Validate a skill's on-disk `SKILL.md` (frontmatter, `name`==dir, size, referenced files). |
 | `skillsync detect` | Detect upstream changes per skill and print a name → kind table. |
@@ -119,7 +119,8 @@ with a `SKILL.md` that isn't tracked in `sources.yaml` — hand-written here, no
 
 `status` enumerates skills from the **filesystem**, not from `sources.yaml`, so a local skill
 needs **no registration**: create `skills/<category>/<name>/SKILL.md`, then activate its
-category with `skillsync link --skill-set <category>`. The command creates one direct link per
+category with `skillsync link --skill-set <category>`. To add that category without changing
+which other skills are active, pass `--append`. The command creates one direct link per
 vendored or local skill inside it, while `status` tags each skill by origin:
 
 ```
@@ -180,10 +181,20 @@ skillsync link \
 
 Each discovered skill in a selected category becomes a direct Claude Code-compatible link, for
 example `skills/engineering/code-review/` becomes `~/.agents/skills/code-review` (or a directory
-chosen by `SKILLSYNC_LINK_DIR`). Re-run the command whenever the desired selection changes: it
-refreshes selected direct links, removes stale repository-owned direct links, and migrates legacy
-category symlinks. It never deletes regular target paths or external symlinks. `sync` remains
-independent and continues to process the complete configured library.
+chosen by `SKILLSYNC_LINK_DIR`). Re-run the command whenever the complete desired selection
+changes: it refreshes selected direct links, removes stale repository-owned direct links, and
+migrates legacy category symlinks.
+
+To incrementally activate another category while preserving every existing target entry, append
+it instead:
+
+```sh
+skillsync link --skill-set productivity --append
+```
+
+Append mode still creates missing selected links and refreshes stale selected symlinks; it simply
+skips cleanup outside the selection. Both modes preserve regular target paths and external
+symlinks. `sync` remains independent and continues to process the complete configured library.
 
 ## Architecture
 
