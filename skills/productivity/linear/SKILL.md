@@ -11,29 +11,13 @@ helpers on top (e.g. resolving the current issue from the branch name).
 - **Repo**: https://github.com/schpet/linear-cli
 - **Author**: schpet
 
-## Installation
+## Prerequisites
 
-```bash
-brew install schpet/tap/linear
-```
+`linear --version` — if missing, tell the user to install it: `brew install schpet/tap/linear`.
+`linear auth whoami` — if it fails, tell the user to run `linear auth login`. Credentials live in
+the system keyring, not a config file; `linear auth list` shows configured workspaces.
 
-## Authentication
-
-Credentials are stored per-workspace in the system keyring (not plaintext). Multiple
-workspaces can be configured at once.
-
-```bash
-linear auth login              # add a workspace credential
-linear auth logout [workspace] # remove one
-linear auth list                # list configured workspaces
-linear auth default [workspace] # set which one is used when --workspace is omitted
-linear auth whoami              # show the authenticated user for the active workspace
-linear auth token               # print the configured API token
-linear auth migrate             # move any plaintext creds into the system keyring
-```
-
-Every command accepts `--workspace <slug>` to target a specific configured workspace instead
-of the default one.
+Every command accepts `--workspace <slug>` to target a workspace other than the default.
 
 ## Running non-interactively
 
@@ -142,18 +126,10 @@ linear config                        # interactively generate .linear.toml
 `.linear.toml` in a project root can pin things like the default team, so issue lookups and
 `linear issue create` don't need `--workspace`/team flags repeated on every call.
 
-### Shell completions
-
-```bash
-linear completions
-```
-
 ## Notes
 
 - The git-branch-aware commands (`id`, `title`, `url`, `describe`, `start`, `pull-request`,
   `commits`) infer the issue from the current branch only when its name embeds a Linear issue
   id (e.g. `eng-123-...`) — otherwise pass the issue id explicitly.
-- Establish auth state with `linear auth whoami` / `linear auth list` before describing it to
-  the user.
 - Aliases are listed inline with each command above. Write commands out in full when explaining
   them, so `linear project-update` reads as itself rather than as `linear pu`.
