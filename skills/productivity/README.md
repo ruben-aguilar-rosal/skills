@@ -20,6 +20,7 @@ web artifacts, handing off context, and learning.
 | `handoff` | Compact the current conversation into a handoff doc for another agent. |
 | `humanizer` | Edit prose to remove AI-writing tells while preserving its intended voice. |
 | `i-have-adhd` | Shape output for an ADHD reader: lead with the next action, number steps, restate state each turn, suppress tangents, give concrete time estimates. *(ayghri)* |
+| `linear` | Linear CLI reference: manage issues, projects, teams, cycles, milestones, documents, and raw GraphQL queries from the terminal. Hand-authored (not vendored). |
 | `ntn` | Notion CLI reference: authenticate, call the Notion API, upload files, manage Workers. Frontmatter `name` is `Notion CLI (ntn)`. *(composio-community)* |
 | `perplexity-search` | Research current web information with the local Perplexity CLI through the direct API or OpenRouter. |
 | `teach` | Teach you a new skill or concept within this workspace. |
@@ -34,7 +35,8 @@ web artifacts, handing off context, and learning.
   shapes output broadly once linked; disable it if you don't want that. `ntn` activates when
   an agent needs to work with the Notion API/Workers/file uploads via the CLI.
   `perplexity-search` activates for research, investigation, web search, current-information,
-  fact-checking, source-comparison, and citation-gathering requests.
+  fact-checking, source-comparison, and citation-gathering requests. `linear` activates when
+  an agent needs to create/query/update Linear issues, projects, teams, or documents via the CLI.
 - **Explicit:** the rest are `disable-model-invocation` — invoke them yourself, e.g.
   *"use the `handoff` skill"* or `/teach`.
 - Run `uv run skillsync link` to symlink vendored skills into `~/.claude/skills` so they
