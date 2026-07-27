@@ -1,12 +1,12 @@
 ---
 name: "linear"
-description: "CLI for Linear (issues, projects, teams, cycles, milestones, initiatives, documents). Use whenever an agent needs to create, query, update, or link Linear issues/projects from the terminal, look up team or user info, or run a raw GraphQL query against the Linear API — even if the user just says 'file a Linear issue' or 'check my Linear tickets' without naming the CLI."
+description: "CLI for Linear. Use whenever an agent needs to create, query, update, or link Linear issues, projects, or documents from the terminal, look up team/user/workflow-state info, or run a raw GraphQL query against the Linear API — even if the user just says 'file a Linear issue' or 'check my Linear tickets' without naming the CLI."
 ---
 
 # linear — The Linear CLI
 
-Unofficial but full-featured CLI for Linear, by schpet. Wraps the Linear GraphQL API with
-git/branch-aware helpers on top (e.g. resolving the current issue from the branch name).
+Unofficial but full-featured CLI for Linear. Wraps the Linear GraphQL API with git/branch-aware
+helpers on top (e.g. resolving the current issue from the branch name).
 
 - **Repo**: https://github.com/schpet/linear-cli
 - **Author**: schpet
@@ -150,12 +150,10 @@ linear completions
 
 ## Notes
 
-- Most subcommands accept a short alias (`i`, `t`, `u`, `p`, `pu`, `cy`, `m`, `init`, `iu`,
-  `l`, `docs`/`doc`) — useful for tighter one-liners, but spell them out the first time in
-  any explanation so the reader isn't left guessing what `linear pu` means.
-- The git-branch-aware commands (`id`, `title`, `url`, `start`, `pr`, `commits`) only work when
-  the current branch name embeds a Linear issue id (e.g. `eng-123-...`) — otherwise pass the
-  issue id explicitly.
-- `linear issue commits` is jj (Jujutsu)-only.
-- Don't assume or state whether the user is currently authenticated — check with
-  `linear auth whoami` / `linear auth list` rather than asserting a login state.
+- The git-branch-aware commands (`id`, `title`, `url`, `describe`, `start`, `pull-request`,
+  `commits`) infer the issue from the current branch only when its name embeds a Linear issue
+  id (e.g. `eng-123-...`) — otherwise pass the issue id explicitly.
+- Establish auth state with `linear auth whoami` / `linear auth list` before describing it to
+  the user.
+- Aliases are listed inline with each command above. Write commands out in full when explaining
+  them, so `linear project-update` reads as itself rather than as `linear pu`.
