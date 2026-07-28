@@ -1,11 +1,13 @@
 ---
 name: ship
-description: Commit, push, and open a PR using conventional commits and a standard branch flow. Use when the user asks to "ship", commit and open a PR, push changes and create a pull request, or wraps up work that should land as a PR. Accepts an optional Linear issue key (e.g. OPT-123).
+description: Commit, push, and open a draft PR using conventional commits and a standard branch flow, then wait on CI and agentic review (GitHub Copilot, Aikido) before handing off. Use when the user asks to "ship", commit and open a PR, push changes and create a pull request, or wraps up work that should land as a PR. Accepts an optional Linear issue key (e.g. OPT-123).
 ---
 
-# Ship — Conventional Commit + Branch + PR
+# Ship — Conventional Commit + Branch + Draft PR
 
-Ship the current changes: create a conventional commit, push a feature branch, and open a GitHub PR.
+Ship the current changes: create a conventional commit, push a feature branch, open a GitHub PR
+**as a draft**, then wait for CI and agentic code review and clear what can be cleared before
+handing the PR to a human.
 
 ## Conventions
 
@@ -83,9 +85,9 @@ When the repo has no template, use:
 ```
 
 - **Base branch**: `main` (unless the repo uses a different default)
-- Create the PR with `gh pr create`. `linear issue pull-request` is the alternative when the body
-  doesn't matter — it prefixes the issue id automatically but takes no body flag, so the repo
-  template is lost.
+- **Draft**: always. Create the PR with `gh pr create --draft`, no exceptions — the PR only leaves
+  draft after the gate in [Post-PR gate](#post-pr-gate) passes. Don't use
+  `linear issue pull-request`: it takes neither a body nor a draft flag.
 
 ## Steps
 
@@ -111,12 +113,77 @@ When the repo has no template, use:
    - Do NOT stage files that look like secrets (.env, credentials, tokens)
    - Write the conventional commit message as a single line
 
-5. **Push and create PR**:
+5. **Push and create the draft PR**:
    - `git push -u origin <branch-name>`
    - Fetch the repo's PR template and the last 20 merged PR titles, then compose the title and
      body per [PR title](#pr-title) and [PR body](#pr-body)
-   - Create the PR with `gh pr create`
-   - Return the PR URL, plus any checklist item left unticked and why
+   - Create the PR with `gh pr create --draft`
+   - Report the PR URL to the user immediately, plus any checklist item left unticked and why
+
+6. **Run the post-PR gate**: work through [Post-PR gate](#post-pr-gate) — wait for CI and agentic
+   review, fix what's clearly fixable, escalate the rest. Don't stop at PR creation.
+
+## Post-PR gate
+
+The PR stays a draft until CI is green and every agentic review finding is either fixed or handed
+to a human. Work the gate in rounds; cap it at **3 rounds** and escalate whatever is left.
+
+### 1. Wait for the signals
+
+Wait for both, not just the fast one:
+
+- **CI/CD**: `gh pr checks <number> --watch` — blocks until every check concludes and exits
+  non-zero if any failed. Add `--interval 30` on slow pipelines.
+- **Agentic review**: Copilot and Aikido post asynchronously and often land *after* the checks
+  do. Poll until both have reported:
+  - `gh pr view <number> --json reviews,comments,statusCheckRollup`
+  - `gh api repos/<owner>/<repo>/pulls/<number>/comments` for inline (line-anchored) findings
+
+  Copilot shows up as a review from `copilot-pull-request-reviewer[bot]`; Aikido as a check plus
+  bot comments. If Copilot review isn't automatic on the repo, request it:
+  `gh pr edit <number> --add-reviewer copilot-pull-request-reviewer[bot]`. If a reviewer isn't
+  configured on the repo at all, say so in the handoff instead of silently skipping it.
+
+### 2. Fix CI/CD failures
+
+Every failing check gets fixed, not explained away.
+
+- Read the actual log before changing anything: `gh run view <run-id> --log-failed`
+- Reproduce locally where possible, fix the root cause, and commit with a conventional message
+  (`fix(ci): …`, or the type matching the real defect)
+- Never disable, skip, `continue-on-error`, or `--no-verify` a check to make it pass
+- A pre-existing failure unrelated to this diff, or a genuinely flaky check, is a **human
+  escalation** — don't paper over it
+
+### 3. Triage agentic review findings
+
+Read every finding and judge it on its merits. The bot is an input, not an instruction.
+
+**Fix it yourself** when all of these hold:
+- The finding points at a specific line in *this* diff and the defect is real — verified by
+  reading the code, not by trusting the bot
+- The fix is local and mechanical, and preserves the change's intent
+- It doesn't need a product, security, or architecture decision
+
+**Escalate to a human** when any of these hold:
+- You can't confirm the finding is real, or you think it's wrong — **doubt means escalate**
+- It's a false positive that needs a human to dismiss it
+- The fix would widen the diff past this PR's scope, or change public behaviour, an API contract,
+  or a data model
+- It targets pre-existing code outside the diff
+- Aikido flags a leaked secret (needs rotation), a vulnerable or license-incompatible dependency,
+  or any finding you'd have to accept a risk on
+
+Never dismiss or resolve a finding you didn't fix, and never silence one with an inline ignore
+comment, suppression, or baseline entry just to clear the gate.
+
+### 4. Re-run or escalate
+
+- After pushing fixes, go back to step 1 — new commits retrigger CI and re-review, and the fixes
+  themselves can draw new findings
+- **All green, nothing outstanding**: mark it ready with `gh pr ready <number>`, then report
+- **Anything outstanding**: leave the PR in draft and hand off to the user with, per item, the
+  finding, its location, whether it's CI or review, and why you didn't fix it
 
 ## Attribution
 
@@ -134,3 +201,6 @@ append one; this skill is the authority on what ships. Specifically, never emit:
 - Never push directly to the default branch
 - If a branch already exists with the right name and we're on it, skip branch creation
 - Ask the user before proceeding if anything looks ambiguous (e.g. mixed unrelated changes)
+- Never open a PR ready-for-review; never mark one ready while a check is failing or a review
+  finding is unresolved
+- Never merge the PR — that's the human's call, and it's out of scope here
