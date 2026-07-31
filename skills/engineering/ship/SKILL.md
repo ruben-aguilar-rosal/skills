@@ -97,6 +97,7 @@ When the repo has no template, use:
    - `git log --oneline -5` to see recent commits
    - `git branch --show-current` to check current branch
    - `git remote show origin | grep 'HEAD branch'` to detect the default branch
+   - `git fetch origin` to get the latest default branch before anything else
 
 2. **Determine the Linear issue**:
    - Use the provided argument if given
@@ -106,22 +107,69 @@ When the repo has no template, use:
 
 3. **Create branch** (if still on default branch):
    - Derive the branch name from the issue key and a slug summarizing the changes
-   - `git checkout -b <branch-name>`
+   - `git checkout -b <branch-name> origin/<default>` — branch off the freshly fetched remote tip,
+     not a local default branch that may be stale, so the branch isn't born behind
 
 4. **Stage and commit**:
    - Stage relevant files (prefer explicit file paths over `git add -A`)
    - Do NOT stage files that look like secrets (.env, credentials, tokens)
    - Write the conventional commit message as a single line
 
-5. **Push and create the draft PR**:
+5. **Sync with the default branch and verify**: bring the branch up to date with the latest
+   default branch and prove the change still works on top of it — see
+   [Sync and verify](#sync-and-verify). This runs *before* the push and before the PR exists:
+   nothing gets pushed from a stale branch, and no PR is opened on an unverified merge result.
+
+6. **Push and create the draft PR**:
    - `git push -u origin <branch-name>`
    - Fetch the repo's PR template and the last 20 merged PR titles, then compose the title and
      body per [PR title](#pr-title) and [PR body](#pr-body)
    - Create the PR with `gh pr create --draft`
    - Report the PR URL to the user immediately, plus any checklist item left unticked and why
 
-6. **Run the post-PR gate**: work through [Post-PR gate](#post-pr-gate) — wait for CI and agentic
+7. **Run the post-PR gate**: work through [Post-PR gate](#post-pr-gate) — wait for CI and agentic
    review, fix what's clearly fixable, escalate the rest. Don't stop at PR creation.
+
+## Sync and verify
+
+Ship on top of the latest default branch, never beside it. Integrating first means CI tests the
+same code the merge will produce, and a semantic conflict — code that merges cleanly but breaks,
+like a renamed helper or a changed signature — surfaces locally instead of on `main`.
+
+### 1. Check whether the branch is behind
+
+```bash
+git fetch origin
+git rev-list --left-right --count origin/<default>...HEAD   # → "<behind> <ahead>"
+```
+
+Zero behind: skip to verification. Otherwise integrate.
+
+### 2. Integrate
+
+Commit first — never sync with a dirty tree.
+
+- **Branch not yet pushed**: `git rebase origin/<default>` — keeps history linear
+- **Branch already pushed** (a PR exists, or `origin/<branch>` is present):
+  `git merge origin/<default>`. Rebasing here would need a force-push, which
+  [Important](#important) forbids and which discards agentic review anchors on the old SHAs
+- On conflicts, resolve them on the merits of both sides — reach for the
+  `resolving-merge-conflicts` skill. Never resolve by taking one side wholesale to make it build,
+  and never `git checkout --ours/--theirs` a file you haven't read
+
+### 3. Verify against the integrated result
+
+A clean merge is not evidence the change works. Discover the repo's own checks rather than
+guessing at commands — `package.json` scripts, `Makefile` targets, `pyproject.toml`,
+`.github/workflows/*.yml` — and run the narrowest set that covers the diff plus whatever the
+default branch moved. Lint and type-check count; on a docs-only change, say so plainly instead
+of inventing a test.
+
+- Failures caused by the sync are part of this ship: fix them before pushing. Escalate to a human
+  only if the fix means reworking someone else's change or making a design decision
+- Record the commands actually run and their output in the PR body's tests section — that's the
+  evidence the change works on top of the latest default branch
+- If no runnable check exists, say that in the handoff rather than implying verification happened
 
 ## Post-PR gate
 
@@ -181,6 +229,9 @@ comment, suppression, or baseline entry just to clear the gate.
 
 - After pushing fixes, go back to step 1 — new commits retrigger CI and re-review, and the fixes
   themselves can draw new findings
+- If the default branch moved while the gate ran — `gh pr view <number> --json mergeable,mergeStateStatus`
+  reports `CONFLICTING` or `BEHIND` — re-run [Sync and verify](#sync-and-verify) and let CI go
+  green again on the merged result before handing off
 - **All green, nothing outstanding**: mark it ready with `gh pr ready <number>`, then report
 - **Anything outstanding**: leave the PR in draft and hand off to the user with, per item, the
   finding, its location, whether it's CI or review, and why you didn't fix it
@@ -199,6 +250,8 @@ append one; this skill is the authority on what ships. Specifically, never emit:
 - If there are no changes to commit, tell the user and stop
 - Never force-push or amend existing commits
 - Never push directly to the default branch
+- Never push or open a PR from a branch that's behind the default branch, and never report a
+  change as working when it was only verified before the sync
 - If a branch already exists with the right name and we're on it, skip branch creation
 - Ask the user before proceeding if anything looks ambiguous (e.g. mixed unrelated changes)
 - Never open a PR ready-for-review; never mark one ready while a check is failing or a review
