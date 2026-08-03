@@ -418,6 +418,12 @@ def add_cmd(
     dest: str | None = typer.Option(
         None, "--dest", help="Parent dir to store the skill under (default skills/)."
     ),
+    name: str | None = typer.Option(
+        None,
+        "--name",
+        help="Local folder name (default: the skill path's last segment). "
+        "Required when the skill path is the repo root ('.').",
+    ),
     no_pr: bool = typer.Option(
         False,
         "--no-pr",
@@ -431,8 +437,11 @@ def add_cmd(
     SKILL.md as-is, validates, and opens a `vendored` PR. Adaptation is opt-in —
     pass `--adapt` to instead draft a self-contained adaptation.md from profile.md
     and full-generate the first SKILL.md (an `onboarding` PR). `--dest` overrides
-    where the skill folder is stored, to group skills from different repos. `--no-pr`
-    writes the skill to the working tree and stops, opening no PR.
+    where the skill folder is stored, to group skills from different repos; `--name`
+    overrides its folder name, and is REQUIRED when the upstream repo *is* the skill
+    (SKILL.md at the root, so `.` as the skill path, which has no last segment to
+    name the folder after). `--no-pr` writes the skill to the working tree and stops,
+    opening no PR.
     """
     try:
         config = load_config(config_path)
@@ -443,20 +452,25 @@ def add_cmd(
     for warning in config.warnings:
         typer.echo(f"warning: {warning}", err=True)
 
-    outcome = run_add(
-        config,
-        root,
-        repo,
-        skill_path,
-        git=make_git(),
-        llm=make_llm(),
-        gh=make_gh(),
-        scanner=make_scanner(),
-        ref=ref,
-        adapt=adapt,
-        dest=dest,
-        open_pr=not no_pr,
-    )
+    try:
+        outcome = run_add(
+            config,
+            root,
+            repo,
+            skill_path,
+            git=make_git(),
+            llm=make_llm(),
+            gh=make_gh(),
+            scanner=make_scanner(),
+            ref=ref,
+            adapt=adapt,
+            dest=dest,
+            name=name,
+            open_pr=not no_pr,
+        )
+    except ConfigError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
     suffix = f"  {outcome.url}" if outcome.url else ""
     typer.echo(f"{outcome.name}  {outcome.status}{suffix}")
 

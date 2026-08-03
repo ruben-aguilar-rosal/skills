@@ -10,8 +10,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-from skillsync.config import Config, SkillPin
+from skillsync.config import Config, SkillPin, skill_name
 from skillsync.ports.git import GitPort
+from skillsync.subtree import subtree_prefix
 
 Kind = Literal["none", "changed", "reonboard"]
 
@@ -49,7 +50,7 @@ def _detect_one(repo: str, ref: str, pin: SkillPin, git: GitPort) -> ChangeSet:
     """Mirror `repo`, resolve HEAD, and classify a single pin."""
     repo_path = git.mirror(repo, ref)
     to_sha = git.head_sha(repo_path, ref)
-    name = pin.path.rstrip("/").rsplit("/", 1)[-1]
+    name = skill_name(pin)
 
     # New skill: no prior sync point — full subtree is the diff.
     if pin.synced_sha is None:
@@ -107,7 +108,7 @@ def _reonboard(
 
 def _changed_files(diff: str, subtree: str) -> list[str]:
     """Extract subtree-relative file paths from a unified diff's `---`/`+++` headers."""
-    prefix = subtree.rstrip("/") + "/"
+    prefix = subtree_prefix(subtree)
     files: set[str] = set()
     for line in diff.splitlines():
         if not (line.startswith("--- ") or line.startswith("+++ ")):

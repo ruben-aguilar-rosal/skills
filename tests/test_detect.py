@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from skillsync.config import Config, SkillPin, Source
+from skillsync.config import Config, ConfigError, SkillPin, Source
 from skillsync.stages.detect import ChangeSet, detect
 from skillsync.testing.fakes import FakeGit
 
@@ -106,3 +106,61 @@ def test_changeset_carries_skill_path_and_name(fake: FakeGit) -> None:
     assert isinstance(change, ChangeSet)
     assert change.skill_path == SUBTREE
     assert change.name == "demo"
+
+
+# --- repo-root skills: the upstream repo IS one skill (SKILL.md at the top) -----
+
+
+def _root_config(synced_sha: str | None) -> Config:
+    """A config whose single pin is the repo root, named explicitly."""
+    return Config(
+        sources=[
+            Source(
+                repo=REPO,
+                ref="main",
+                skills=[
+                    SkillPin(
+                        path=".",
+                        synced_sha=synced_sha,
+                        dest="skills/productivity",
+                        name="asd-ste100",
+                    )
+                ],
+            )
+        ]
+    )
+
+
+def _root_git() -> FakeGit:
+    """Two commits at the repo root, the second changing SKILL.md."""
+    git = FakeGit()
+    git.add_commit("sha1", {"SKILL.md": "# Root\nfirst\n"})
+    git.add_commit("sha2", {"SKILL.md": "# Root\nsecond\n"})
+    git.set_ref("main", "sha2")
+    return git
+
+
+def test_detect_names_a_root_pin_by_its_explicit_name(tmp_path: Path) -> None:
+    """A root pin's change set carries its `name`, never the unusable `.` basename."""
+    changes = detect(_root_config("sha1"), _root_git(), tmp_path)
+
+    assert [(c.name, c.kind) for c in changes] == [("asd-ste100", "changed")]
+
+
+def test_detect_root_pin_reports_repo_relative_changed_files(tmp_path: Path) -> None:
+    """Root-subtree diff paths stay repo-relative — no stray `./` prefix survives."""
+    changes = detect(_root_config("sha1"), _root_git(), tmp_path)
+
+    assert changes[0].changed_files == ["SKILL.md"]
+
+
+def test_detect_root_pin_without_name_raises(tmp_path: Path) -> None:
+    """An unnamed root pin is a config error, surfaced rather than silently misnamed."""
+    config = Config(
+        sources=[
+            Source(repo=REPO, ref="main", skills=[SkillPin(path=".", synced_sha="sha1")])
+        ]
+    )
+
+    with pytest.raises(ConfigError, match="repo root"):
+        detect(config, _root_git(), tmp_path)

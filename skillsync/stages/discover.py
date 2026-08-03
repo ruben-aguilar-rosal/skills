@@ -23,6 +23,7 @@ from typing import Literal
 
 from skillsync.config import Config, Source
 from skillsync.ports.git import GitError, GitPort
+from skillsync.subtree import subtree_basename
 
 # The marker file that makes a folder a skill (PLAN.md: each skill folder ships one).
 _SKILL_FILE = "SKILL.md"
@@ -103,6 +104,11 @@ def _under_any_watch(path: str, watch: list[str]) -> bool:
 
 
 def _finding(repo: str, skill_path: str, kind: Kind) -> Discovery:
-    """Build a Discovery, naming the skill by its last path segment."""
-    name = skill_path.rstrip("/").rsplit("/", 1)[-1]
+    """Build a Discovery, naming the skill by its last path segment.
+
+    A repo-root skill path has no last segment, so it falls back to the repo's own
+    name — a discovery is only a suggestion to display, and adopting it via `add`
+    is where the real folder name gets chosen (`--name`).
+    """
+    name = subtree_basename(skill_path) or subtree_basename(repo)
     return Discovery(repo=repo, skill_path=skill_path, name=name, kind=kind)

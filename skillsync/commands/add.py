@@ -30,11 +30,13 @@ from typing import Literal
 
 from skillsync.config import (
     Config,
+    ConfigError,
     SkillPin,
     Source,
     load_profile,
     save_config,
     skill_dest,
+    skill_name,
 )
 from skillsync.layout import SkillLayout, mirror_files, write_aux_files, write_text
 from skillsync.pr import build_pr, publish_pr
@@ -47,6 +49,7 @@ from skillsync.ports.scanner import ScannerPort, scan_subtree
 from skillsync.stages.gate import DEFAULT_MAX_FILE_BYTES, GateResult
 from skillsync.stages.llm_scan import AdvisoryVerdict, advisory_scan
 from skillsync.stages.validate import validate_skill
+from skillsync.subtree import subtree_basename
 
 # Default model for every agentic step (PLAN.md: Opus for all of them).
 _DEFAULT_MODEL = "opus"
@@ -158,6 +161,7 @@ def run_add(
     ref: str = "main",
     adapt: bool = False,
     dest: str | None = None,
+    name: str | None = None,
     open_pr: bool = True,
     model: str = _DEFAULT_MODEL,
 ) -> AddOutcome:
@@ -180,11 +184,23 @@ def run_add(
     uncommitted for inspection (status `local`). The pin's `synced_sha` is set to the
     upstream head whenever the artifacts are written (a PR or a local add). A gate or
     validation failure opens an issue and leaves the pin unsynced. `dest` overrides
-    where the skill folder is stored (default `skills/`).
+    where the skill folder is stored (default `skills/`); `name` overrides the skill's
+    folder name (required when `skill_path` is the repo root, which has no basename).
+
+    Raises `ConfigError` for a root `skill_path` given no `name` — checked up front,
+    so a nameless root pin is never persisted to sources.yaml.
     """
-    pin = _register_pin(config, root, repo, skill_path, ref, dest)
-    name = skill_path.rstrip("/").rsplit("/", 1)[-1]
-    layout = SkillLayout.resolve(root, skill_path, dest=skill_dest(_source(config, repo), pin))
+    if not name and not subtree_basename(skill_path):
+        raise ConfigError(
+            f"skill path {skill_path!r} is the repo root, which has no folder name "
+            "to onboard under: pass --name to say what to call it locally."
+        )
+
+    pin = _register_pin(config, root, repo, skill_path, ref, dest, name)
+    folder_name = skill_name(pin)
+    layout = SkillLayout.resolve(
+        root, skill_path, name=folder_name, dest=skill_dest(_source(config, repo), pin)
+    )
 
     # Read the new upstream subtree — the gate's scan surface and the mirror source.
     repo_path = git.mirror(repo, ref)
@@ -193,7 +209,7 @@ def run_add(
     diff = git.diff_subtree(repo_path, None, ref, skill_path)
     changeset = ChangeSet(
         skill_path=skill_path,
-        name=name,
+        name=folder_name,
         kind="reonboard",
         from_sha=None,
         to_sha=to_sha,
@@ -348,14 +364,21 @@ def _open_or_local(
 
 
 def _register_pin(
-    config: Config, root: Path, repo: str, skill_path: str, ref: str, dest: str | None
+    config: Config,
+    root: Path,
+    repo: str,
+    skill_path: str,
+    ref: str,
+    dest: str | None,
+    name: str | None,
 ) -> SkillPin:
     """Find-or-create the pin under the matching/new Source and persist the config.
 
     Reuses an existing pin for `skill_path` (so re-running `add` after recording an
     acceptance keeps that pin's `accept_findings`/`accept_invalid` rather than
-    appending a duplicate). A new pin is unsynced; `dest`, when given, is recorded so
-    the skill is stored under that parent dir. Returns the pin for the caller to bump.
+    appending a duplicate). A new pin is unsynced; `dest` and `name`, when given, are
+    recorded so the skill is stored under that parent dir / folder name. Returns the
+    pin for the caller to bump.
     """
     source = next((s for s in config.sources if s.repo == repo), None)
     if source is None:
@@ -363,10 +386,13 @@ def _register_pin(
         config.sources.append(source)
     pin = next((p for p in source.skills if p.path == skill_path), None)
     if pin is None:
-        pin = SkillPin(path=skill_path, synced_sha=None, hold=False, dest=dest)
+        pin = SkillPin(path=skill_path, synced_sha=None, hold=False, dest=dest, name=name)
         source.skills.append(pin)
-    elif dest is not None:
-        pin.dest = dest
+    else:
+        if dest is not None:
+            pin.dest = dest
+        if name is not None:
+            pin.name = name
     save_config(config, root / "sources.yaml")
     return pin
 

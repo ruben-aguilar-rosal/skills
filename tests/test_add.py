@@ -15,13 +15,15 @@ cover the onboarding outcome matrix:
 
 from pathlib import Path
 
+import pytest
+
 from skillsync.commands.add import (
     AddOutcome,
     _invalid_body,
     _quarantine_body,
     run_add,
 )
-from skillsync.config import Config, SkillPin, Source, load_config
+from skillsync.config import Config, ConfigError, SkillPin, Source, load_config
 from skillsync.layout import SkillLayout, read_text
 from skillsync.ports.llm import LLMResult
 from skillsync.stages.gate import GateResult
@@ -437,3 +439,96 @@ def test_quarantine_body_stays_under_github_limit() -> None:
 
     assert len(body) < 65_536
     assert "truncated" in body
+
+
+# --- repo-root skills: the upstream repo IS one skill (SKILL.md at the top) -----
+
+# A root-level upstream: SKILL.md at the top of the repo, plus a ship-along ref file.
+_ROOT_UPSTREAM = (
+    "---\nname: asd-ste100\ndescription: Rewrite text into simplified English.\n---\n\n"
+    "# asd-ste100\nRewrite the input into short, active-voice sentences.\n"
+)
+
+
+def _root_git() -> FakeGit:
+    """A FakeGit whose repo IS the skill: SKILL.md at the root, no subfolder."""
+    git = FakeGit()
+    git.add_commit(
+        "sha1",
+        {"SKILL.md": _ROOT_UPSTREAM, "references/rules.md": "rule one\n"},
+    )
+    git.set_ref("main", "sha1")
+    return git
+
+
+def test_add_vendors_a_repo_root_skill_into_its_named_folder(tmp_path: Path) -> None:
+    """`--name` gives a root-level upstream its own folder under the dest category."""
+    config = Config(sources=[])
+
+    outcome = run_add(
+        config,
+        tmp_path,
+        "owner/asd-ste100-skill",
+        ".",
+        git=_root_git(),
+        llm=FakeLLM({}),
+        gh=FakeGh(),
+        scanner=_clean(),
+        dest="skills/productivity",
+        name="asd-ste100",
+        open_pr=False,
+    )
+
+    assert outcome.status == "local"
+    folder = tmp_path / "skills" / "productivity" / "asd-ste100"
+    # The skill lands in its OWN folder, not splatted across the category dir.
+    assert read_text(folder / "SKILL.md") == _ROOT_UPSTREAM
+    assert read_text(folder / ".upstream" / "SKILL.md") == _ROOT_UPSTREAM
+    assert read_text(folder / "references" / "rules.md") == "rule one\n"
+    assert not (tmp_path / "skills" / "productivity" / "SKILL.md").exists()
+
+
+def test_add_records_name_on_the_root_pin(tmp_path: Path) -> None:
+    """The pin persists `path: .` plus the `name`, so later syncs resolve the folder."""
+    config = Config(sources=[])
+
+    run_add(
+        config,
+        tmp_path,
+        "owner/asd-ste100-skill",
+        ".",
+        git=_root_git(),
+        llm=FakeLLM({}),
+        gh=FakeGh(),
+        scanner=_clean(),
+        dest="skills/productivity",
+        name="asd-ste100",
+        open_pr=False,
+    )
+
+    pin = _pin(load_config(tmp_path / "sources.yaml"), path=".")
+    assert pin.name == "asd-ste100"
+    assert pin.dest == "skills/productivity"
+    assert pin.synced_sha == "sha1"
+
+
+def test_add_rejects_a_root_path_without_a_name(tmp_path: Path) -> None:
+    """A nameless root onboarding fails up front and writes no pin to sources.yaml."""
+    config = Config(sources=[])
+
+    with pytest.raises(ConfigError, match="repo root"):
+        run_add(
+            config,
+            tmp_path,
+            "owner/asd-ste100-skill",
+            ".",
+            git=_root_git(),
+            llm=FakeLLM({}),
+            gh=FakeGh(),
+            scanner=_clean(),
+            dest="skills/productivity",
+            open_pr=False,
+        )
+
+    assert config.sources == []
+    assert not (tmp_path / "sources.yaml").exists()
