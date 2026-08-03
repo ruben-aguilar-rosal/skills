@@ -6,6 +6,7 @@ Productivity skills vendored verbatim from:
 - [`anthropics/skills`](https://github.com/anthropics/skills) (synced at `3541475`) — `doc-coauthoring`, `web-artifacts-builder`
 - [`ayghri/i-have-adhd`](https://github.com/ayghri/i-have-adhd) (synced at `72c33ee`) — `i-have-adhd`
 - [`composio-community/awesome-agent-clis`](https://github.com/composio-community/awesome-agent-clis) (synced at `9f765d2`) — `ntn`
+- [`danyuchn/asd-ste100-skill`](https://github.com/danyuchn/asd-ste100-skill) (`master`, synced at `8564f89`) — `asd-ste100-skill`
 
 These are thinking/working aids: stress-testing plans, co-authoring docs, building rich
 web artifacts, handing off context, and learning.
@@ -14,6 +15,7 @@ web artifacts, handing off context, and learning.
 
 | Folder / id (`name`) | Use it for |
 |---|---|
+| `asd-ste100-skill` | Rewrite dense or ambiguous English into ASD-STE100 Simplified Technical English — one meaning per word, active voice, simple tenses, short sentences — with a before/after table naming the rule each rewrite fixes. Aimed at text another agent or a translation pipeline has to parse. Frontmatter `name` is `Simplified Technical English (ASD-STE100)`. *(danyuchn)* |
 | `doc-coauthoring` | Structured workflow for co-authoring docs, proposals, specs, decision docs. *(anthropics)* |
 | `grill-me` | A relentless plan/design interview (user-invoked). |
 | `grilling` | Interview you relentlessly to stress-test a plan or design before building. |
@@ -37,6 +39,9 @@ web artifacts, handing off context, and learning.
   `perplexity-search` activates for research, investigation, web search, current-information,
   fact-checking, source-comparison, and citation-gathering requests. `linear` activates when
   an agent needs to create/query/update Linear issues, projects, teams, or documents via the CLI.
+  `asd-ste100-skill` activates on "simplify this" / "STE100 rewrite" and when agent output
+  reads as hard to parse. It is deliberately flat and literal — don't point it at creative or
+  marketing copy, where voice is the point.
 - **Explicit:** the rest are `disable-model-invocation` — invoke them yourself, e.g.
   *"use the `handoff` skill"* or `/teach`.
 - Run `uv run skillsync link` to symlink vendored skills into `~/.claude/skills` so they
@@ -51,6 +56,17 @@ web artifacts, handing off context, and learning.
 - `ntn` carries `accept_invalid: true`. Its frontmatter `name` (`Notion CLI (ntn)`) differs
   from its folder name (`ntn`), which fails the folder/name validation. SkillSpector scored
   the skill `0` / SAFE with zero findings — the mismatch is cosmetic, not a security issue.
+- `asd-ste100-skill` carries `accept_invalid: true` and `accept_findings: [P5]`.
+  `accept_invalid` is the same cosmetic mismatch as `ntn`: the frontmatter `name`
+  (`Simplified Technical English (ASD-STE100)`) is not its folder name. `P5` is a CRITICAL
+  "Harmful Content Injection" hit on the literal string *"kill people"* at `README.md:9` —
+  the sentence is *"STE exists because a misread instruction on an aircraft can kill people"*,
+  descriptive prose explaining why the standard exists, not an instruction to anyone. The
+  skill ships five markdown files, no executable scripts and no network calls.
+
+  This is also the repo's first **root-level** upstream: the repo *is* the skill, with
+  `SKILL.md` at the top rather than in a subfolder, so its pin is `path: .` plus an explicit
+  `name:` naming the local folder.
 
 ## Updating
 
