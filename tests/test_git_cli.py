@@ -134,3 +134,67 @@ def test_head_sha_unknown_ref_raises_git_error(two_commit_repo: Path) -> None:
     """An unresolvable ref surfaces as a typed GitError."""
     with pytest.raises(GitError):
         GitCli().head_sha(two_commit_repo, "no-such-ref")
+
+
+def test_read_subtree_files_returns_relative_paths_and_content(
+    two_commit_repo: Path,
+) -> None:
+    """`read_subtree_files` maps subtree-relative paths to their blob content."""
+    files = GitCli().read_subtree_files(two_commit_repo, "main", SUBTREE)
+
+    assert files == {"SKILL.md": "# Demo\nsecond line\n", "scripts/run.sh": "echo hi\n"}
+
+
+# --- repo-root skills: the upstream repo IS one skill (SKILL.md at the top) -----
+
+
+@pytest.fixture
+def root_skill_bare_mirror(tmp_path: Path) -> Path:
+    """A BARE mirror of a repo whose SKILL.md sits at the top level.
+
+    Bare is the point: `GitCli` reads through `git.mirror`, which clones `--mirror`,
+    and a bare repo is exactly where the `<ref>:./SKILL.md` relative-path spelling
+    fails ("relative path syntax can't be used outside working tree").
+    """
+    work = tmp_path / "work"
+    work.mkdir()
+    _run_git(work, "init", "-q")
+    _run_git(work, "config", "user.email", "test@example.com")
+    _run_git(work, "config", "user.name", "Test")
+    _run_git(work, "branch", "-m", "main")
+    (work / "SKILL.md").write_text("# Root skill\n")
+    (work / "references").mkdir()
+    (work / "references" / "rules.md").write_text("rule one\n")
+    _run_git(work, "add", "-A")
+    _run_git(work, "commit", "-q", "-m", "only commit")
+
+    bare = tmp_path / "mirror.git"
+    _run_git(tmp_path, "clone", "--mirror", "-q", str(work), str(bare))
+    return bare
+
+
+@pytest.mark.parametrize("subtree", [".", ""])
+def test_list_subtree_files_at_repo_root(root_skill_bare_mirror: Path, subtree: str) -> None:
+    """A root subtree lists every file in the repo, unprefixed."""
+    files = GitCli().list_subtree_files(root_skill_bare_mirror, "main", subtree)
+
+    assert sorted(files) == ["SKILL.md", "references/rules.md"]
+
+
+def test_read_subtree_files_at_repo_root_against_bare_mirror(
+    root_skill_bare_mirror: Path,
+) -> None:
+    """A root subtree's blobs are readable from a bare mirror (no `./` spelling)."""
+    files = GitCli().read_subtree_files(root_skill_bare_mirror, "main", ".")
+
+    assert files == {"SKILL.md": "# Root skill\n", "references/rules.md": "rule one\n"}
+
+
+def test_diff_subtree_at_repo_root_renders_full_content(
+    root_skill_bare_mirror: Path,
+) -> None:
+    """A first-onboarding diff of a root subtree carries the whole repo's content."""
+    diff = GitCli().diff_subtree(root_skill_bare_mirror, None, "main", ".")
+
+    assert "+# Root skill\n" in diff
+    assert "+rule one\n" in diff

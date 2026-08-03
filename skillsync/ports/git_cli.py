@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 
 from skillsync.ports.git import GitError
+from skillsync.subtree import subtree_pathspec, subtree_prefix
 
 # Git's well-known empty-tree object; diffing against it renders a ref's files
 # as pure additions (used for the `from_sha=None` full-content case).
@@ -98,12 +99,14 @@ class GitCli:
     ) -> str:
         """Unified diff of `subtree` from `from_sha` (or empty tree) to `ref`."""
         base = from_sha if from_sha is not None else _EMPTY_TREE
-        return self._run(repo_path, "diff", base, ref, "--", subtree)
+        return self._run(repo_path, "diff", base, ref, "--", subtree_pathspec(subtree))
 
     def list_subtree_files(self, repo_path: Path, ref: str, subtree: str) -> list[str]:
         """List subtree-relative file paths present under `subtree` at `ref`."""
-        prefix = subtree.rstrip("/") + "/"
-        output = self._run(repo_path, "ls-tree", "-r", "--name-only", ref, "--", subtree)
+        prefix = subtree_prefix(subtree)
+        output = self._run(
+            repo_path, "ls-tree", "-r", "--name-only", ref, "--", subtree_pathspec(subtree)
+        )
         return [
             line[len(prefix) :] if line.startswith(prefix) else line
             for line in output.splitlines()
@@ -120,7 +123,7 @@ class GitCli:
         a blob that is not valid UTF-8 (a font, image, archive, …) comes back as
         `bytes` so binary ship-along assets survive vendoring intact.
         """
-        prefix = subtree.rstrip("/") + "/"
+        prefix = subtree_prefix(subtree)
         files: dict[str, str | bytes] = {}
         for rel_path in self.list_subtree_files(repo_path, ref, subtree):
             full_path = f"{prefix}{rel_path}"

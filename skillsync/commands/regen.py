@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-from skillsync.config import Config, skill_dest
+from skillsync.config import Config, skill_dest, skill_name
 from skillsync.layout import (
     SkillLayout,
     mirror_files,
@@ -180,12 +180,12 @@ def regenerate_to_pr(
 def _dest_for_name(config: Config, name: str) -> str:
     """Resolve the dest dir for the skill whose folder name is `name`.
 
-    Matches the pin whose path's last segment equals `name`; falls back to the
+    Matches the pin whose resolved folder name equals `name`; falls back to the
     default dest when no pin matches (e.g. a hand-placed skill folder).
     """
     for source in config.sources:
         for pin in source.skills:
-            if pin.path.rstrip("/").rsplit("/", 1)[-1] == name:
+            if skill_name(pin) == name:
                 return skill_dest(source, pin)
     return "skills"
 

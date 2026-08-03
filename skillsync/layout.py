@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from skillsync.subtree import subtree_basename
+
 if TYPE_CHECKING:
     from skillsync.config import Config, SkillPin, Source
 
@@ -39,7 +41,12 @@ class SkillLayout:
         `dest` is the parent dir (relative to `repo_root`) the skill folder lives
         under; it defaults to `skills`, so the folder is `<dest>/<name>/`.
         """
-        skill_name = name or subtree.rstrip("/").rsplit("/", 1)[-1]
+        skill_name = name or subtree_basename(subtree)
+        if not skill_name:
+            raise ValueError(
+                f"cannot name a skill folder from subtree {subtree!r} (the repo "
+                "root): pass an explicit `name`."
+            )
         root = repo_root / dest / skill_name
         generated_dir = root / ".generated"
         return cls(
@@ -235,13 +242,15 @@ def pin_index(
     upstream). Keying on the resolved path — not the bare name — keeps two skills
     that share a name across categories distinct. Returns `{}` when `config` is None.
     """
-    from skillsync.config import skill_dest
+    from skillsync.config import skill_dest, skill_name
 
     if config is None:
         return {}
     index: dict[Path, tuple[Source, SkillPin]] = {}
     for source in config.sources:
         for pin in source.skills:
-            layout = SkillLayout.resolve(repo_root, pin.path, dest=skill_dest(source, pin))
+            layout = SkillLayout.resolve(
+                repo_root, pin.path, name=skill_name(pin), dest=skill_dest(source, pin)
+            )
             index[layout.root.resolve()] = (source, pin)
     return index

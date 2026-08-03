@@ -13,6 +13,7 @@ from skillsync.config import (
     load_profile,
     save_config,
     skill_dest,
+    skill_name,
 )
 
 SAMPLE_YAML = """\
@@ -261,3 +262,54 @@ def test_load_profile_reads_file(tmp_path: Path) -> None:
 def test_load_profile_missing_returns_empty(tmp_path: Path) -> None:
     """`load_profile` returns an empty string when the file is absent."""
     assert load_profile(tmp_path / "absent.md") == ""
+
+
+# --- skill_name: the local folder name for a pin --------------------------------
+
+
+def test_skill_name_defaults_to_path_basename() -> None:
+    """Without an override a pin is named by its subtree's last segment."""
+    assert skill_name(SkillPin(path="skills/engineering/tdd", synced_sha=None)) == "tdd"
+
+
+def test_skill_name_prefers_explicit_name() -> None:
+    """An explicit `name` overrides the path basename."""
+    pin = SkillPin(path="skills/engineering/tdd", synced_sha=None, name="my-tdd")
+
+    assert skill_name(pin) == "my-tdd"
+
+
+def test_skill_name_raises_for_root_pin_without_name() -> None:
+    """A root-path pin has no basename to fall back on, so it must be named."""
+    with pytest.raises(ConfigError, match="repo root"):
+        skill_name(SkillPin(path=".", synced_sha=None))
+
+
+def test_skill_name_resolves_root_pin_with_name() -> None:
+    """A named root pin resolves to that name."""
+    pin = SkillPin(path=".", synced_sha=None, name="asd-ste100")
+
+    assert skill_name(pin) == "asd-ste100"
+
+
+def test_name_round_trips_through_save_and_load(tmp_path: Path) -> None:
+    """A pin's `name` survives a save/load cycle of sources.yaml."""
+    path = tmp_path / "sources.yaml"
+    pin = SkillPin(
+        path=".", synced_sha="sha1", dest="skills/productivity", name="asd-ste100"
+    )
+    save_config(Config(sources=[Source(repo="o/r", ref="master", skills=[pin])]), path)
+
+    reloaded = load_config(path)
+
+    assert reloaded.sources[0].skills[0].name == "asd-ste100"
+    assert reloaded.warnings == []
+
+
+def test_name_is_omitted_when_unset(tmp_path: Path) -> None:
+    """A pin with no `name` does not gain a null key on save."""
+    path = tmp_path / "sources.yaml"
+    pin = SkillPin(path="skills/demo", synced_sha="sha1")
+    save_config(Config(sources=[Source(repo="o/r", ref="main", skills=[pin])]), path)
+
+    assert "name:" not in path.read_text()

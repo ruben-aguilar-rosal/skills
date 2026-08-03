@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Literal
 
 from skillsync.commands.regen import regenerate_to_pr
-from skillsync.config import Config, load_profile, skill_dest
+from skillsync.config import Config, load_profile, skill_dest, skill_name
 from skillsync.layout import SkillLayout, read_text, read_tree, write_text
 from skillsync.ports.gh import GhPort
 from skillsync.ports.llm import LLMError, LLMPort
@@ -100,17 +100,19 @@ def run_reprofile(
     """
     profile = load_profile(root / "profile.md")
     outcomes: list[ReprofileOutcome] = []
-    for skill_path, dest in _tracked_paths(config):
+    for skill_path, name, dest in _tracked_paths(config):
         outcomes.append(
-            _reprofile_one(skill_path, dest, root, profile, llm=llm, gh=gh, model=model)
+            _reprofile_one(
+                skill_path, name, dest, root, profile, llm=llm, gh=gh, model=model
+            )
         )
     return outcomes
 
 
-def _tracked_paths(config: Config) -> list[tuple[str, str]]:
-    """Every pinned skill's `(subtree path, dest dir)` across all sources, in order."""
+def _tracked_paths(config: Config) -> list[tuple[str, str, str]]:
+    """Every pinned skill's `(subtree path, folder name, dest dir)`, in source order."""
     return [
-        (pin.path, skill_dest(source, pin))
+        (pin.path, skill_name(pin), skill_dest(source, pin))
         for source in config.sources
         for pin in source.skills
     ]
@@ -118,6 +120,7 @@ def _tracked_paths(config: Config) -> list[tuple[str, str]]:
 
 def _reprofile_one(
     skill_path: str,
+    name: str,
     dest: str,
     root: Path,
     profile: str,
@@ -127,7 +130,7 @@ def _reprofile_one(
     model: str,
 ) -> ReprofileOutcome:
     """Re-bake one skill's adaptation.md and regenerate it into a PR (or block it)."""
-    layout = SkillLayout.resolve(root, skill_path, dest=dest)
+    layout = SkillLayout.resolve(root, skill_path, name=name, dest=dest)
     current_adaptation = read_text(layout.adaptation_path) or ""
     rebaked = _rebake_adaptation(profile, current_adaptation, llm, model)
     upstream_files = read_tree(layout.upstream_dir)

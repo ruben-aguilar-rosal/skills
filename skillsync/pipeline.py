@@ -190,7 +190,9 @@ def _sync_one(
             detail="no upstream change",
         )
 
-    layout = SkillLayout.resolve(root, changeset.skill_path, dest=dest)
+    layout = SkillLayout.resolve(
+        root, changeset.skill_path, name=changeset.name, dest=dest
+    )
 
     # Adaptation is opt-in: a skill is adapted only when it has an adaptation.md on
     # disk. Without one, leave it entirely untouched (no mirror, no LLM, no PR, sha

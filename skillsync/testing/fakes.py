@@ -17,6 +17,7 @@ from skillsync.ports.git import GitError
 from skillsync.ports.llm import LLMError, LLMResult
 from skillsync.ports.scanner import ScanError
 from skillsync.stages.gate import Finding, GateResult
+from skillsync.subtree import subtree_prefix
 
 _EMPTY_TREE = "<empty>"
 
@@ -104,7 +105,7 @@ class FakeGit:
 
     def _subtree_files(self, sha: str, subtree: str) -> dict[str, str | bytes]:
         """Return `{subtree-relative-path: content}` for files under `subtree` at `sha`."""
-        prefix = subtree.rstrip("/") + "/"
+        prefix = subtree_prefix(subtree)
         return {
             path[len(prefix) :]: content
             for path, content in self._snapshots[sha].items()

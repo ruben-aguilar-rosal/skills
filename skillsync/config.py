@@ -12,11 +12,14 @@ from typing import Any
 
 import yaml
 
+from skillsync.subtree import subtree_basename
+
 _log = logging.getLogger(__name__)
 
 _SOURCE_KEYS = {"repo", "ref", "skills", "watch", "ignore", "dest"}
 _SKILL_KEYS = {
     "path",
+    "name",
     "synced_sha",
     "hold",
     "dest",
@@ -41,6 +44,10 @@ class SkillPin:
     its name is appended to); `None` falls back to the source's `dest`, then the
     global default. Use it to group specific skills from different repos together.
 
+    `name` overrides the local folder name, which otherwise comes from the last
+    segment of `path`. It is REQUIRED when `path` is the repo root (`.`), since a
+    root path has no last segment to name the folder after.
+
     `accept_findings` lists SkillSpector rule IDs the author has reviewed and
     accepted: a blocking (CRITICAL/HIGH) finding with one of these IDs is demoted to
     a non-blocking annotation, so the gate passes for *those specific* findings while
@@ -53,6 +60,7 @@ class SkillPin:
     synced_sha: str | None
     hold: bool = False
     dest: str | None = None
+    name: str | None = None
     accept_findings: list[str] = field(default_factory=list)
     accept_invalid: bool = False
 
@@ -96,6 +104,25 @@ def skill_dest(source: Source, pin: SkillPin) -> str:
     `DEFAULT_DEST`. The skill's folder name is appended to this by the layout.
     """
     return pin.dest or source.dest or DEFAULT_DEST
+
+
+def skill_name(pin: SkillPin) -> str:
+    """Resolve the local folder name for a pin: its `name`, else its path's basename.
+
+    The single source of truth for "what is this skill called locally", shared by
+    detect, add, and the layout join. Raises `ConfigError` for a root-path pin with
+    no `name`, since `.` has no basename to fall back on and would otherwise resolve
+    the skill folder onto its own parent category dir.
+    """
+    if pin.name:
+        return pin.name
+    name = subtree_basename(pin.path)
+    if not name:
+        raise ConfigError(
+            f"skill pin with path {pin.path!r} (the repo root) needs an explicit "
+            "'name:' to say what its local folder is called."
+        )
+    return name
 
 
 def load_config(path: Path) -> Config:
@@ -153,6 +180,8 @@ def _dump_skill(pin: SkillPin) -> dict[str, Any]:
     }
     if pin.dest is not None:
         out["dest"] = pin.dest
+    if pin.name is not None:
+        out["name"] = pin.name
     if pin.accept_findings:
         out["accept_findings"] = list(pin.accept_findings)
     if pin.accept_invalid:
@@ -199,6 +228,7 @@ def _parse_skill(
         synced_sha=entry.get("synced_sha"),
         hold=entry.get("hold", False),
         dest=entry.get("dest"),
+        name=entry.get("name"),
         accept_findings=list(entry.get("accept_findings") or []),
         accept_invalid=entry.get("accept_invalid", False),
     )

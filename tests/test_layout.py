@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 from skillsync.config import Config, SkillPin, Source
 from skillsync.layout import (
     SkillFiles,
@@ -255,3 +257,50 @@ def test_pin_index_maps_resolved_folder_to_source_and_pin(tmp_path: Path) -> Non
 def test_pin_index_is_empty_without_config(tmp_path: Path) -> None:
     """`pin_index(None, ...)` is empty, so every discovered skill reads as local."""
     assert pin_index(None, tmp_path) == {}
+
+
+# --- repo-root skills: the upstream repo IS one skill (SKILL.md at the top) -----
+
+
+def test_layout_requires_name_for_root_subtree(tmp_path: Path) -> None:
+    """A root subtree has no basename, so resolving it without a `name` is an error.
+
+    Without this guard `.` resolves the skill folder onto its own parent category
+    dir (pathlib drops the dot), splatting the skill across `skills/<category>/`.
+    """
+    with pytest.raises(ValueError, match="repo root"):
+        SkillLayout.resolve(tmp_path, ".", dest="skills/productivity")
+
+
+def test_layout_resolves_root_subtree_with_explicit_name(tmp_path: Path) -> None:
+    """With a `name`, a root subtree lands in its own folder like any other skill."""
+    layout = SkillLayout.resolve(
+        tmp_path, ".", name="asd-ste100", dest="skills/productivity"
+    )
+
+    assert layout.name == "asd-ste100"
+    assert layout.root == tmp_path / "skills" / "productivity" / "asd-ste100"
+    assert layout.skill_md_path == layout.root / "SKILL.md"
+    assert layout.upstream_dir == layout.root / ".upstream"
+
+
+def test_pin_index_joins_a_named_root_pin_to_its_disk_folder(tmp_path: Path) -> None:
+    """A `name`d root pin and the on-disk scan agree on the same folder path.
+
+    This join is what makes `status`/`link` report a root-level skill as vendored
+    rather than as an untracked local one.
+    """
+    folder = tmp_path / "skills" / "productivity" / "asd-ste100"
+    folder.mkdir(parents=True)
+    (folder / "SKILL.md").write_text("---\nname: asd-ste100\n---\n")
+
+    pin = SkillPin(
+        path=".", synced_sha="sha1", dest="skills/productivity", name="asd-ste100"
+    )
+    config = Config(sources=[Source(repo="owner/repo", ref="master", skills=[pin])])
+
+    discovered = discover_skills(tmp_path)
+    index = pin_index(config, tmp_path)
+
+    assert [layout.name for layout in discovered] == ["asd-ste100"]
+    assert index[discovered[0].root.resolve()] == (config.sources[0], pin)
