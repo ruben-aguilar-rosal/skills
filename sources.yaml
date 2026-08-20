@@ -760,3 +760,13 @@ sources:
     synced_sha: fd6dd6f7276956a532bb78a748a8d2818b6eb5f4
     hold: false
     dest: skills/productivity
+- repo: github/gh-stack
+  ref: main
+  watch: []
+  ignore: []
+  skills:
+  - path: skills/gh-stack
+    synced_sha: ab00aa4a3f2dddc51aa65849c68b391a1b079311
+    hold: false
+    dest: skills/engineering
+    accept_invalid: true
