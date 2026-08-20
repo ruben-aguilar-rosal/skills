@@ -48,10 +48,11 @@ The agent auto-loads a skill when a request matches its `description` (the trigg
 To invoke one explicitly, name it, e.g. *"use `promql-generator` to write a RED-method query"* or
 *"use `slo-implementation` to define an error budget"*.
 
-Vendored skills are **unlinked** by default. Activate them under `~/.claude/skills`:
+Vendored skills are **not installed** by default. Activate them under `~/.agents/skills`
+and `~/.claude/skills`:
 
 ```bash
-uv run skillsync link
+uv run skillsync install --skill-set observability
 ```
 
 ## Updating

@@ -46,10 +46,11 @@ The agent auto-loads a skill when a request matches its `description` (the trigg
 no explicit invocation needed. To invoke one explicitly, name it, e.g. *"use the `k8s-debug` skill
 on this CrashLoopBackOff"*.
 
-Vendored skills are **unlinked** by default. To activate them under `~/.claude/skills`:
+Vendored skills are **not installed** by default. To activate them under `~/.agents/skills`
+and `~/.claude/skills`:
 
 ```bash
-uv run skillsync link
+uv run skillsync install --skill-set kubernetes
 ```
 
 ## Updating

@@ -751,3 +751,12 @@ sources:
     accept_findings:
     - P5
     accept_invalid: true
+- repo: cursor/plugins
+  ref: main
+  watch: []
+  ignore: []
+  skills:
+  - path: pstack/skills/unslop
+    synced_sha: fd6dd6f7276956a532bb78a748a8d2818b6eb5f4
+    hold: false
+    dest: skills/productivity

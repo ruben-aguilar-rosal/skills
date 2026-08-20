@@ -130,14 +130,18 @@ first `SKILL.md` — all in the onboarding PR. You refine the draft and regenera
 
 ## Consumption
 
-Personal use selects top-level skill sets, then exposes every skill in them as a direct entry in
-the shared Agent Skills dir so Claude Code can discover it:
+Personal use selects top-level skill sets, then copies every skill in them into each agent skills
+dir so Claude Code can discover it:
 ```
-skillsync link --skill-set documents --skill-set engineering --skill-set meta
-# ln -s skills/<set>/<skill> -> ~/.agents/skills/<skill>
+skillsync install --skill-set documents --skill-set engineering --skill-set meta
+# cp -r skills/<set>/<skill> -> ~/.agents/skills/<skill> AND ~/.claude/skills/<skill>
 ```
-Re-run with the desired selection to remove stale repository-owned direct links and migrate old
-category links. No plugin/marketplace manifest (can be added later if sharing is ever wanted).
+Copies, not symlinks: a symlink resolves to its real path inside this repo, leaking repo internals
+into consumers. Bookkeeping (`.upstream/`, `.generated/`, `adaptation.md`) is left behind, and each
+copy carries a `.skillsync-install.json` marker (source + content digest) so later runs can tell
+an up-to-date copy from a stale one and recognize the copies this repo owns. Re-run with the
+desired selection to refresh stale copies, remove owned copies outside it, and migrate old links.
+No plugin/marketplace manifest (can be added later if sharing is ever wanted).
 
 ---
 
@@ -147,7 +151,7 @@ skillsync add <repo> <skill-path>   # onboard a new upstream skill (draft adapta
 skillsync sync [--skill <name>]     # detect -> gate -> reconcile -> patch -> verify -> validate -> PR
 skillsync regen <name> [--force]    # regenerate SKILL.md (--force = full rewrite)
 skillsync reprofile                 # re-bake current profile.md into every adaptation.md (reviewed PR)
-skillsync link --skill-set <name>   # expose a selected set's skills directly in ~/.agents/skills
+skillsync install --skill-set <name>  # copy a selected set's skills into every agent skills dir
 skillsync status                    # show drift + pending upstream changes
 ```
 

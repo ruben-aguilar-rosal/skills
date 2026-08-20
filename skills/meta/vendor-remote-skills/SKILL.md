@@ -59,8 +59,9 @@ for the skill to be rewritten for their stack.
 ## LLM SHOULD
 
 - Branch off `main` with a `chore/vendor-<repo>` or `feat/...` name before committing.
-- Mention that vendored skills are `unlinked`; suggest `uv run skillsync link` to activate
-  them under `~/.claude/skills`.
+- Mention that vendored skills are not installed; suggest
+  `uv run skillsync install --skill-set <category>` to copy them into `~/.agents/skills`
+  and `~/.claude/skills`.
 - Keep the commit message factual: which skills, which overrides and why (mirror the
   existing `chore: vendor ...` commits).
 
@@ -73,7 +74,8 @@ Create `skills/<category>/README.md` covering:
 2. **What each skill does** — one row per skill: folder name, frontmatter `name` (the id
    the agent loads), and a one-line trigger description.
 3. **How to use** — that the agent auto-loads a skill by its `description`; how to invoke
-   explicitly; the `uv run skillsync link` step to symlink into `~/.claude/skills`.
+   explicitly; the `uv run skillsync install --skill-set <category>` step that copies them
+   into the agent skills dirs.
 4. **Updating** — `uv run skillsync sync` to pull upstream changes; note any
    `accept_findings`/`accept_invalid` carried on the pins and why.
 

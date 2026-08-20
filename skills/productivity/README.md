@@ -7,6 +7,7 @@ Productivity skills vendored verbatim from:
 - [`ayghri/i-have-adhd`](https://github.com/ayghri/i-have-adhd) (synced at `72c33ee`) — `i-have-adhd`
 - [`composio-community/awesome-agent-clis`](https://github.com/composio-community/awesome-agent-clis) (synced at `9f765d2`) — `ntn`
 - [`danyuchn/asd-ste100-skill`](https://github.com/danyuchn/asd-ste100-skill) (`master`, synced at `8564f89`) — `asd-ste100-skill`
+- [`cursor/plugins`](https://github.com/cursor/plugins) (`pstack/skills/`, synced at `fd6dd6f`) — `unslop`
 
 These are thinking/working aids: stress-testing plans, co-authoring docs, building rich
 web artifacts, handing off context, and learning.
@@ -26,6 +27,7 @@ web artifacts, handing off context, and learning.
 | `ntn` | Notion CLI reference: authenticate, call the Notion API, upload files, manage Workers. Frontmatter `name` is `Notion CLI (ntn)`. *(composio-community)* |
 | `perplexity-search` | Research current web information with the local Perplexity CLI through the direct API or OpenRouter. |
 | `teach` | Teach you a new skill or concept within this workspace. |
+| `unslop` | Cut AI tells from writing: puffery, AI vocabulary, em dashes, rule-of-three, inline-header lists, passive voice, filler. 31 numbered patterns plus an "add soul" pass (have opinions, vary rhythm, be specific). Overlaps `humanizer` — `unslop` is the terser checklist and bans em dashes outright. *(cursor)* |
 | `web-artifacts-builder` | Build elaborate multi-component claude.ai HTML artifacts (React, Tailwind, shadcn/ui) — good for interactive web reports. *(anthropics)* |
 | `writing-great-skills` | Reference for writing and editing skills well. |
 
@@ -34,7 +36,7 @@ web artifacts, handing off context, and learning.
 - **Automatic:** `grilling`, `doc-coauthoring`, and `web-artifacts-builder` activate from
   their `description` (a "grill" phrase, a doc-writing request, or a complex-artifact ask).
   `i-have-adhd` also self-activates — its `description` triggers on *any* message, so it
-  shapes output broadly once linked; disable it if you don't want that. `ntn` activates when
+  shapes output broadly once installed; disable it if you don't want that. `ntn` activates when
   an agent needs to work with the Notion API/Workers/file uploads via the CLI.
   `perplexity-search` activates for research, investigation, web search, current-information,
   fact-checking, source-comparison, and citation-gathering requests. `linear` activates when
@@ -42,10 +44,14 @@ web artifacts, handing off context, and learning.
   `asd-ste100-skill` activates on "simplify this" / "STE100 rewrite" and when agent output
   reads as hard to parse. It is deliberately flat and literal — don't point it at creative or
   marketing copy, where voice is the point.
+  `unslop` is also broadly self-activating: its `description` reads *"Must always apply"*,
+  so it shapes prose on every writing task once installed. Disable it, or keep `humanizer`
+  instead, if you don't want two overlapping de-slop passes running at once.
 - **Explicit:** the rest are `disable-model-invocation` — invoke them yourself, e.g.
   *"use the `handoff` skill"* or `/teach`.
-- Run `uv run skillsync link` to symlink vendored skills into `~/.claude/skills` so they
-  become active. Vendored skills are `unlinked` by default.
+- Run `uv run skillsync install --skill-set productivity` to copy these skills into
+  `~/.agents/skills` and `~/.claude/skills` so they become active. Skills are not installed
+  by default.
 
 ## Gate overrides
 
@@ -67,6 +73,8 @@ web artifacts, handing off context, and learning.
   This is also the repo's first **root-level** upstream: the repo *is* the skill, with
   `SKILL.md` at the top rather than in a subfolder, so its pin is `path: .` plus an explicit
   `name:` naming the local folder.
+- `unslop` carries no overrides. Its folder name matches its frontmatter `name` and
+  SkillSpector scored it `0` / SAFE with zero findings (one markdown file, no scripts).
 
 ## Updating
 
