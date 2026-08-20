@@ -108,6 +108,16 @@ def mirror_files(files: dict[str, str | bytes], dest_dir: Path) -> None:
         write_file(dest_dir / rel_path, content)
 
 
+def aux_file_paths(upstream_files: dict[str, str | bytes]) -> set[str]:
+    """The skill-relative paths `write_aux_files` will lay down beside SKILL.md.
+
+    Validation runs before the write, so callers pass this to `validate_skill` as
+    `incoming_files`; otherwise a reference to a brand-new upstream aux file fails
+    purely because it is not on disk yet.
+    """
+    return {rel for rel in upstream_files if rel != "SKILL.md"}
+
+
 def write_aux_files(layout: "SkillLayout", upstream_files: dict[str, str | bytes]) -> None:
     """Lay a skill's ship-along files (everything but SKILL.md) into the skill root.
 
@@ -120,7 +130,7 @@ def write_aux_files(layout: "SkillLayout", upstream_files: dict[str, str | bytes
     while the skill-owned paths (`SKILL.md`, `adaptation.md`, `.generated/`,
     `.upstream/`) are always left untouched.
     """
-    desired = {rel: content for rel, content in upstream_files.items() if rel != "SKILL.md"}
+    desired = {rel: upstream_files[rel] for rel in aux_file_paths(upstream_files)}
 
     for stale in _stale_aux_paths(layout, set(desired)):
         stale.unlink()

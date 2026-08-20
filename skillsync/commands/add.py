@@ -38,7 +38,13 @@ from skillsync.config import (
     skill_dest,
     skill_name,
 )
-from skillsync.layout import SkillLayout, mirror_files, write_aux_files, write_text
+from skillsync.layout import (
+    SkillLayout,
+    aux_file_paths,
+    mirror_files,
+    write_aux_files,
+    write_text,
+)
 from skillsync.pr import build_pr, publish_pr
 from skillsync.ports.gh import GhPort
 from skillsync.ports.git import GitPort
@@ -260,7 +266,9 @@ def _onboard_vendored(
         return _invalid(changeset, ["upstream subtree has no SKILL.md"], gh, root)
 
     flags: list[str] = []
-    validation = validate_skill(layout, skill_md, DEFAULT_MAX_FILE_BYTES)
+    validation = validate_skill(
+        layout, skill_md, DEFAULT_MAX_FILE_BYTES, aux_file_paths(new_files)
+    )
     if not validation.passed:
         if not pin.accept_invalid:
             return _invalid(changeset, validation.errors, gh, root)
@@ -310,7 +318,7 @@ def _onboard_adapted(
     # 5. Deterministic validate — blocks the PR on a non-loadable skill, unless the
     #    pin has accept_invalid (then ship a flagged PR instead of filing an issue).
     validation = validate_skill(
-        layout, adapt_result.skill_md_text, DEFAULT_MAX_FILE_BYTES
+        layout, adapt_result.skill_md_text, DEFAULT_MAX_FILE_BYTES, aux_file_paths(new_files)
     )
     if not validation.passed:
         if not pin.accept_invalid:

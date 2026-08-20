@@ -27,6 +27,7 @@ from typing import Literal
 from skillsync.config import Config, SkillPin, save_config, skill_dest
 from skillsync.layout import (
     SkillLayout,
+    aux_file_paths,
     mirror_files,
     read_skill,
     write_aux_files,
@@ -251,7 +252,10 @@ def _sync_one(
     #    accept_invalid ships a flagged PR instead of an issue on a validation fail.
     if options.run_validate:
         validation = validate_skill(
-            layout, adapt_result.skill_md_text, DEFAULT_MAX_FILE_BYTES
+            layout,
+            adapt_result.skill_md_text,
+            DEFAULT_MAX_FILE_BYTES,
+            aux_file_paths(new_files),
         )
         if not validation.passed:
             if not pin.accept_invalid:

@@ -2,9 +2,10 @@
 name: terraform-search-import
 description: Discover existing cloud resources using Terraform Search queries and bulk import them into Terraform management. Use when bringing unmanaged infrastructure under Terraform control, auditing cloud resources, or migrating to IaC.
 metadata:
+  lifecycle-status: active
   copyright: Copyright IBM Corp. 2026
   version: "0.1.0"
-compatibility: Requires Terraform >= 1.14 and providers with list resource support (always use latest provider version)
+  compatibility: Requires Terraform 1.14 or newer and providers with list resource support
 ---
 
 # Terraform Search and Bulk Import
@@ -301,6 +302,28 @@ import {
   }
 }
 ```
+
+## Verifying Imported State
+
+After running `terraform apply` to import resources, verify what actually landed in state.
+Prefer the documented, stable, and more token-efficient commands over reading the raw state
+file:
+
+```bash
+# Confirm resources are now managed (also confirms addresses)
+terraform state list
+
+# Inspect resolved attribute values for imported resources
+terraform show -json | jq '.values.root_module.resources[] | {address, type, name}'
+```
+
+`terraform show -json` requires providers to be installed (`terraform init`), since it
+renders values against provider schemas. **Fall back to the raw state
+(`terraform state pull` / `terraform.tfstate`) only when** providers aren't available and
+`init` can't run, you need only coarse info (addresses, outputs, `serial`/`lineage`), or you
+must avoid executing Terraform. Avoid parsing the raw version-4 state format as a stable
+interface. **Note:** state contains sensitive values in plaintext in every format — never
+echo state contents into logs or output.
 
 ## Best Practices
 
