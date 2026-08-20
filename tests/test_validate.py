@@ -118,3 +118,30 @@ def test_bare_script_reference_is_checked(tmp_path: Path) -> None:
 
     assert result.passed is False
     assert any("scripts/helper.sh" in err for err in result.errors)
+
+
+def test_incoming_aux_file_counts_as_present(tmp_path: Path) -> None:
+    """A reference to a file this sync is about to write is not a missing file.
+
+    Vendoring validates BEFORE `write_aux_files` lays the ship-along files down,
+    so without `incoming_files` every newly-added upstream aux file would fail
+    validation purely because the write had not happened yet.
+    """
+    layout = _layout(tmp_path)
+    text = _skill_md(body="\nSee [the boundaries](PHASE-BOUNDARIES.md) for details.\n")
+
+    result = validate_skill(layout, text, BYTE_CAP, {"PHASE-BOUNDARIES.md"})
+
+    assert result.passed is True
+    assert result.errors == []
+
+
+def test_reference_absent_from_disk_and_incoming_still_fails(tmp_path: Path) -> None:
+    """`incoming_files` widens the check to pending writes, it does not disable it."""
+    layout = _layout(tmp_path)
+    text = _skill_md(body="\nSee [the boundaries](PHASE-BOUNDARIES.md) for details.\n")
+
+    result = validate_skill(layout, text, BYTE_CAP, {"references/other.md"})
+
+    assert result.passed is False
+    assert any("PHASE-BOUNDARIES.md" in err for err in result.errors)

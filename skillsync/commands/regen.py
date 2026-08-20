@@ -27,6 +27,7 @@ from typing import Literal
 from skillsync.config import Config, skill_dest, skill_name
 from skillsync.layout import (
     SkillLayout,
+    aux_file_paths,
     mirror_files,
     read_text,
     read_tree,
@@ -157,7 +158,10 @@ def regenerate_to_pr(
     )
 
     validation = validate_skill(
-        layout, adapt_result.skill_md_text, DEFAULT_MAX_FILE_BYTES
+        layout,
+        adapt_result.skill_md_text,
+        DEFAULT_MAX_FILE_BYTES,
+        aux_file_paths(upstream_files),
     )
     if not validation.passed:
         url = _open_invalid_issue(changeset, validation.errors, gh, root, kind)

@@ -5,6 +5,11 @@ text: it checks the frontmatter schema, that `name` matches the folder, the byte
 ceiling, and that every relative path the body references exists on disk. It
 touches the filesystem only to test reference existence — no git, no network, no
 LLM. A failed validation blocks the PR, guaranteeing a loadable skill.
+
+Callers that validate BEFORE writing the skill's ship-along files pass those
+paths as `incoming_files`, so a reference to a file this sync is about to lay
+down counts as present. Without it, every newly-added upstream aux file would
+fail validation purely because the write had not happened yet.
 """
 
 import re
@@ -37,14 +42,20 @@ class ValidationResult:
     errors: list[str] = field(default_factory=list)
 
 
-def validate_skill(layout: SkillLayout, skill_md_text: str, byte_cap: int) -> ValidationResult:
+def validate_skill(
+    layout: SkillLayout,
+    skill_md_text: str,
+    byte_cap: int,
+    incoming_files: set[str] | None = None,
+) -> ValidationResult:
     """Validate a skill's SKILL.md against the loadability rules.
 
     Checks, in order: the frontmatter parses to a mapping with non-empty `name`
     and `description`; `name` equals `layout.name`; the text is within `byte_cap`
     bytes; and every relative path referenced in the body exists under the skill
-    folder. Returns a `ValidationResult` whose `passed` is true iff `errors` is
-    empty.
+    folder — or is listed in `incoming_files`, the set of skill-relative paths the
+    caller is about to write. Returns a `ValidationResult` whose `passed` is true
+    iff `errors` is empty.
     """
     errors: list[str] = []
     errors.extend(_check_size(skill_md_text, byte_cap))
@@ -55,7 +66,7 @@ def validate_skill(layout: SkillLayout, skill_md_text: str, byte_cap: int) -> Va
     else:
         errors.extend(_check_frontmatter(frontmatter, layout.name))
 
-    errors.extend(_check_references(body, layout))
+    errors.extend(_check_references(body, layout, incoming_files or set()))
     return ValidationResult(passed=not errors, errors=errors)
 
 
@@ -91,12 +102,15 @@ def _check_frontmatter(frontmatter: str, expected_name: str) -> list[str]:
     return errors
 
 
-def _check_references(body: str, layout: SkillLayout) -> list[str]:
-    """Flag every relative path referenced in `body` that is missing on disk."""
+def _check_references(
+    body: str, layout: SkillLayout, incoming_files: set[str]
+) -> list[str]:
+    """Flag referenced paths that are neither on disk nor about to be written."""
     errors: list[str] = []
     for ref in sorted(_referenced_paths(body)):
-        if not (layout.root / ref).exists():
-            errors.append(f"referenced file does not exist: {ref}")
+        if ref in incoming_files or (layout.root / ref).exists():
+            continue
+        errors.append(f"referenced file does not exist: {ref}")
     return errors
 
 
