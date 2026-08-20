@@ -5,6 +5,7 @@ Engineering workflow skills vendored verbatim from several upstreams:
 - [`mattpocock/skills`](https://github.com/mattpocock/skills) (`skills/engineering/`, synced at `6eeb81b`)
 - [`multica-ai/andrej-karpathy-skills`](https://github.com/multica-ai/andrej-karpathy-skills) (synced at `2c60614`) — `karpathy-guidelines`
 - [`anthropics/skills`](https://github.com/anthropics/skills) (synced at `3541475`) — `mcp-builder`, `webapp-testing`, `skill-creator`
+- [`github/gh-stack`](https://github.com/github/gh-stack) (`skills/gh-stack`, synced at `ab00aa4`) — `gh-stack`
 - Personal `git-flow` plugin — `ship`
 
 These cover the build loop: design, plan-to-issues, implement, test, diagnose, build MCP
@@ -18,6 +19,7 @@ servers / skills, and the behavioral guidelines that keep changes surgical.
 | `codebase-design` | Shared vocabulary for designing deep modules and choosing seams. |
 | `diagnosing-bugs` | Diagnosis loop for hard bugs and performance regressions. |
 | `domain-modeling` | Build and sharpen a project's domain model / ubiquitous language. |
+| `gh-stack` | Manage stacked PRs with the `gh stack` CLI extension — create, view, push, submit, sync, rebase, merge. *(github)* |
 | `grill-with-docs` | Relentless plan/design interview that also produces ADRs and a glossary. |
 | `implement` | Implement a piece of work from a PRD or set of issues. |
 | `improve-codebase-architecture` | Scan for deepening opportunities, report as HTML, then grill the chosen one. |
@@ -42,9 +44,22 @@ servers / skills, and the behavioral guidelines that keep changes surgical.
 
 - **Automatic:** model-invocable skills (e.g. `codebase-design`, `diagnosing-bugs`,
   `domain-modeling`, `tdd`, `resolving-merge-conflicts`, `karpathy-guidelines`,
-  `mcp-builder`, `webapp-testing`, `skill-creator`) activate from their `description`.
+  `mcp-builder`, `webapp-testing`, `skill-creator`, `gh-stack`) activate from their
+  `description`.
 - **Explicit:** the mattpocock flow skills are `disable-model-invocation` — invoke them
   yourself, e.g. *"use the `implement` skill"* or `/to-prd`. Start from `ask-matt` if
   unsure which fits.
 - **First run:** `setup-matt-pocock-skills` configures the repo before first use of the
   mattpocock skills.
+
+## Updating
+
+Run `uv run skillsync sync` to pull upstream changes, then
+`uv run skillsync install --skill-set engineering` to copy them into `~/.agents/skills`
+and `~/.claude/skills`.
+
+Pin overrides carried in `sources.yaml`:
+
+- `gh-stack` — `accept_invalid: true`. The validator checks `references/*.md` before the
+  aux files are written to the skill folder, so it reports them as missing. They ship
+  upstream and land on disk; the skill is loadable.
