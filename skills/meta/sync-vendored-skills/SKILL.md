@@ -86,8 +86,9 @@ skill is the recurring *update* of ones already tracked.
 ## LLM SHOULD
 
 - Prefer batching a whole source at a time; it keeps the PR reviewable by upstream.
-- Note that newly-adopted skills are `unlinked`; suggest `uv run skillsync link`
-  after merge.
+- Note that newly-adopted skills are not installed; suggest
+  `uv run skillsync install --skill-set <category>` after merge. Existing installs go stale
+  on every sync, so the same command refreshes them (`--dry-run` first shows what changed).
 - Flag brand-new upstream skills you did NOT adopt (they surface as watch
   discoveries) so the user can decide separately — don't silently pull them in.
 - Keep commits factual and mirror the existing `chore: sync ...` style.

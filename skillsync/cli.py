@@ -11,7 +11,12 @@ from skillsync.commands.accept import AcceptError, run_accept
 from skillsync.commands.add import run_add
 from skillsync.commands.discovery import DiscoveryNotice, surface_discoveries
 from skillsync.commands.ignore import IgnoreError, run_ignore
-from skillsync.commands.link import LinkError, default_target_dir, run_link
+from skillsync.commands.install import (
+    InstallError,
+    default_target_dirs,
+    group_by_target,
+    run_install,
+)
 from skillsync.commands.regen import run_regen
 from skillsync.commands.reprofile import ReprofileOutcome, run_reprofile
 from skillsync.commands.status import SkillStatus, gather_status
@@ -128,7 +133,7 @@ def status(
         False, "--offline", help="Skip the (online) upstream-ahead probe."
     ),
 ) -> None:
-    """Report per skill its synced sha, upstream-ahead, drift, and link state.
+    """Report per skill its synced sha, upstream-ahead, drift, and install state.
 
     Loads `sources.yaml` for the pins, then prints one row per skill folder under
     `skills/`. The upstream-ahead column uses the real git port (offline-tolerant —
@@ -144,7 +149,7 @@ def status(
         typer.echo(f"warning: {warning}", err=True)
 
     git = None if offline else make_git()
-    rows = gather_status(config, root, git=git, target_dir=default_target_dir())
+    rows = gather_status(config, root, git=git, target_dirs=default_target_dirs())
     _print_status(rows)
 
 
@@ -161,14 +166,14 @@ def _print_status(rows: list[SkillStatus]) -> None:
         sha = row.synced_sha or "-------"
         ahead = {True: "ahead", False: "synced", None: "?"}[row.upstream_ahead]
         drift = "drift" if row.drift else "clean"
-        link = "linked" if row.linked else "unlinked"
+        state = "installed" if row.installed else "uninstalled"
         typer.echo(
-            f"{row.name.ljust(width)}  {origin}  {sha}  upstream={ahead}  {drift}  {link}"
+            f"{row.name.ljust(width)}  {origin}  {sha}  upstream={ahead}  {drift}  {state}"
         )
 
 
-@app.command(name="link")
-def link_cmd(
+@app.command(name="install")
+def install_cmd(
     skill_set: list[str] = typer.Option(
         ..., "--skill-set", help="Top-level directory under skills/ whose skills to activate; repeatable."
     ),
@@ -178,43 +183,51 @@ def link_cmd(
     append: bool = typer.Option(
         False,
         "--append",
-        help="Create or refresh selected links without removing existing links.",
+        help="Install or refresh selected skills without removing existing ones.",
     ),
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Print planned actions without changing anything."
     ),
 ) -> None:
-    """Symlink skills from selected sets into the shared Agent Skills dir.
+    """Copy skills from selected sets into every agent skills dir.
 
-    Every discovered selected skill becomes `<target>/<skill> -> <root>/skills/.../<skill>`.
-    The target is `$SKILLSYNC_LINK_DIR` if set, else `~/.agents/skills`. By default,
-    stale repository skill links and old category links are removed. `--append` instead
-    preserves every unselected entry. Real paths and external symlinks are never
-    clobbered. `--dry-run` prints the plan without touching the filesystem.
+    Every discovered selected skill is copied to `<target>/<skill>`, without its
+    `.upstream/`, `.generated/` or `adaptation.md` bookkeeping. Targets are
+    `$SKILLSYNC_INSTALL_DIR` (`os.pathsep`-separated) if set, else `~/.agents/skills`
+    and `~/.claude/skills`. By default copies outside the selection and links left by
+    older releases are removed; `--append` preserves every unselected entry. Real
+    directories that are not skillsync copies are never clobbered. `--dry-run` prints
+    the plan — `update` there means an installed copy has fallen behind the repo.
     """
     try:
-        actions = run_link(
+        actions = run_install(
             root,
-            target_dir=default_target_dir(),
+            target_dirs=default_target_dirs(),
             skill_sets=set(skill_set),
             append=append,
             dry_run=dry_run,
         )
-    except LinkError as exc:
+    except InstallError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1) from exc
 
     prefix = "would " if dry_run else ""
-    width = max(len(a.name) for a in actions)
-    for action in actions:
-        if action.action == "conflict":
-            typer.echo(
-                f"warning: {action.name}: {action.link_path} exists and is not a "
-                "symlink; skipping",
-                err=True,
-            )
-            continue
-        typer.echo(f"{action.name.ljust(width)}  {prefix}{action.action}")
+    width = max(len(action.name) for action in actions)
+    for target_dir, group in group_by_target(actions):
+        typer.echo(f"{target_dir}:")
+        for action in group:
+            if action.action == "conflict":
+                typer.echo(
+                    f"warning: {action.name}: {action.path} exists and is not a "
+                    "skillsync copy; skipping",
+                    err=True,
+                )
+                continue
+            # "would unchanged" reads badly: only the mutating verdicts take the prefix.
+            verdict = action.action
+            if verdict != "unchanged":
+                verdict = f"{prefix}{verdict}"
+            typer.echo(f"  {action.name.ljust(width)}  {verdict}")
 
 
 @app.command(name="detect")

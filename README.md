@@ -48,8 +48,8 @@ uv pip install -e .          # or: pip install -e .
 | `skillsync accept <repo> <skill-path> [--findings P1,SC2] [--invalid]` | Record reviewed-and-accepted security findings and/or a validation failure for a skill, so it stops being quarantined/blocked. Narrow and auditable — a new finding still blocks. Re-run `add`/`sync` after. |
 | `skillsync regen <name> [--force]` | Regenerate one skill's `SKILL.md` from its on-disk `.upstream/` + `adaptation.md` (a full rebuild; never bumps `synced_sha`). |
 | `skillsync reprofile` | Re-bake the current `profile.md` into every skill's `adaptation.md`, one PR per skill. |
-| `skillsync link --skill-set <name>... [--append] [--dry-run]` | Symlink each skill inside selected top-level `skills/<name>/` categories directly into the shared Agent Skills dir (`$SKILLSYNC_LINK_DIR`, else `~/.agents/skills`) for Claude Code discovery. The default reconciles the complete selection; `--append` creates or refreshes selected links without deactivating existing ones. Preserves real paths and external symlinks. |
-| `skillsync status [--offline]` | Per skill: origin (`vendored`/`local`), short `synced_sha`, upstream-ahead, `SKILL.md`-vs-`.generated` drift, and link state. |
+| `skillsync install --skill-set <name>... [--append] [--dry-run]` | Copy each skill inside selected top-level `skills/<name>/` categories into every agent skills dir (`$SKILLSYNC_INSTALL_DIR`, else `~/.agents/skills` **and** `~/.claude/skills`) for Claude Code discovery. The default reconciles the complete selection; `--append` installs or refreshes selected skills without deactivating existing ones. Preserves real directories it did not install, and external symlinks. |
+| `skillsync status [--offline]` | Per skill: origin (`vendored`/`local`), short `synced_sha`, upstream-ahead, `SKILL.md`-vs-`.generated` drift, and install state. |
 | `skillsync validate <name>` | Validate a skill's on-disk `SKILL.md` (frontmatter, `name`==dir, size, referenced files). |
 | `skillsync detect` | Detect upstream changes per skill and print a name → kind table. |
 
@@ -109,8 +109,8 @@ sources:
 
 `skillsync add <repo> <path> --dest skills/aily` records the `dest` on the new pin for you.
 `status` discovers skills by walking `skills/` (see below), so a skill is found wherever it
-lives regardless of its `dest`. `link` selects direct category children of `skills/`, then
-exposes every discovered skill as a direct entry in the shared Agent Skills directory.
+lives regardless of its `dest`. `install` selects direct category children of `skills/`, then
+copies every discovered skill into each agent skills directory as a direct entry.
 
 ### Your own (local) skills
 
@@ -119,18 +119,22 @@ with a `SKILL.md` that isn't tracked in `sources.yaml` — hand-written here, no
 
 `status` enumerates skills from the **filesystem**, not from `sources.yaml`, so a local skill
 needs **no registration**: create `skills/<category>/<name>/SKILL.md`, then activate its
-category with `skillsync link --skill-set <category>`. To add that category without changing
-which other skills are active, pass `--append`. The command creates one direct link per
-vendored or local skill inside it, while `status` tags each skill by origin:
+category with `skillsync install --skill-set <category>`. To add that category without changing
+which other skills are active, pass `--append`. The command installs one copy per vendored or
+local skill inside it, while `status` tags each skill by origin:
 
 ```
-$ skillsync link --skill-set ui --skill-set meta
-meta  create
-ui    unchanged
+$ skillsync install --skill-set ui --skill-set meta
+/Users/you/.agents/skills:
+  taste-skill           create
+  vendor-remote-skills  unchanged
+/Users/you/.claude/skills:
+  taste-skill           create
+  vendor-remote-skills  unchanged
 
 $ skillsync status --offline
-taste-skill           vendored  06d6028  upstream=?  clean  linked
-vendor-remote-skills  local     -------  upstream=?  clean  linked
+taste-skill           vendored  06d6028  upstream=?  clean  installed
+vendor-remote-skills  local     -------  upstream=?  clean  installed
 ```
 
 `sync`/`regen`/`detect` only ever touch *vendored* skills (they need a pin and an upstream),
@@ -163,14 +167,14 @@ export SKILLSYNC_CLAUDE_CMD='bash -ic '\''claude "$@"'\'' _'
 
 skillsync appends `-p <prompt> --output-format json --model …` to whichever it resolves; the
 prompt stays a discrete argv element (no shell interpolation). The deterministic commands
-(`detect`, `discover`, `status`, `link`, `validate`, `ignore`) never call `claude`.
+(`detect`, `discover`, `status`, `install`, `validate`, `ignore`) never call `claude`.
 
 ## Consumption
 
 Activate only the skill categories you want native consumers to load:
 
 ```sh
-skillsync link \
+skillsync install \
   --skill-set documents \
   --skill-set engineering \
   --skill-set meta \
@@ -179,22 +183,37 @@ skillsync link \
   --skill-set slack
 ```
 
-Each discovered skill in a selected category becomes a direct Claude Code-compatible link, for
-example `skills/engineering/code-review/` becomes `~/.agents/skills/code-review` (or a directory
-chosen by `SKILLSYNC_LINK_DIR`). Re-run the command whenever the complete desired selection
-changes: it refreshes selected direct links, removes stale repository-owned direct links, and
-migrates legacy category symlinks.
+Each discovered skill in a selected category becomes a direct Claude Code-compatible directory
+in **every** target — `skills/engineering/code-review/` becomes both `~/.agents/skills/code-review`
+and `~/.claude/skills/code-review` (or the `os.pathsep`-separated list in `SKILLSYNC_INSTALL_DIR`).
+
+Skills are **copied, not symlinked**: a symlinked skill resolves to its real path inside this
+repository, so consumers end up reading repo internals — including the `.upstream/` mirror — and
+behave differently depending on where the repo lives. A copy is just a directory. Installing
+leaves the bookkeeping behind (`.upstream/`, `.generated/`, `adaptation.md`) and marks each copy
+with a `.skillsync-install.json` file recording its source and a content digest.
+
+The trade-off is that an installed skill is a **snapshot**. Re-run the command after changing a
+skill or whenever the desired selection changes: it refreshes stale copies, removes copies it
+owns that fall outside the selection, and replaces symlinks left by older releases. `--dry-run`
+reports the plan without touching anything, so it doubles as the staleness check — an `update`
+verdict means that copy has fallen behind the repo:
+
+```sh
+skillsync install --skill-set documents --dry-run
+```
 
 To incrementally activate another category while preserving every existing target entry, append
 it instead:
 
 ```sh
-skillsync link --skill-set productivity --append
+skillsync install --skill-set productivity --append
 ```
 
-Append mode still creates missing selected links and refreshes stale selected symlinks; it simply
-skips cleanup outside the selection. Both modes preserve regular target paths and external
-symlinks. `sync` remains independent and continues to process the complete configured library.
+Append mode still installs missing selected skills and refreshes stale ones; it simply skips
+cleanup outside the selection. Both modes leave alone any directory skillsync did not install,
+plus external symlinks. `sync` remains independent and continues to process the complete
+configured library.
 
 ## Architecture
 

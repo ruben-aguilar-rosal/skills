@@ -36,7 +36,7 @@ servers / skills, and the behavioral guidelines that keep changes surgical.
 
 > **Note:** `skill-creator` here is the generic anthropics toolkit (create/eval/benchmark);
 > there is also a separate Aily-specific `skill-creator` under `skills/aily/`. The two
-> share a `name`, so only one can be linked into `~/.claude/skills` at a time.
+> share a `name`, so only one can be installed into the agent skills dirs at a time.
 
 ## How to use them
 

@@ -17,8 +17,9 @@ independent, DETERMINISTIC signals (no LLM):
   few repos stays fast;
 - **drift** — whether the committed `SKILL.md` differs from its `.generated`
   snapshot (a hand-edit), reusing the reconcile stage's `detect_drift`;
-- **linked** — whether the target directory has a direct link named for the skill
-  that resolves to its skill folder.
+- **installed** — whether EVERY target directory holds a `skillsync install` copy of
+  this skill (see `commands.install`). A copy that has fallen behind its source still
+  counts as installed; `skillsync install --dry-run` is what reports staleness.
 
 The CLI assembles the real `GitCli` (or `None` when offline) and prints the rows.
 """
@@ -30,6 +31,7 @@ from pathlib import Path
 from typing import Literal
 
 Origin = Literal["vendored", "local"]
+from skillsync.commands.install import installed_from
 from skillsync.config import Config, SkillPin
 from skillsync.layout import SkillLayout, discover_skills, pin_index, read_skill
 from skillsync.ports.git import GitError, GitPort
@@ -49,8 +51,8 @@ class SkillStatus:
     `origin` is `vendored` or `local`; `synced_sha` is the short pinned SHA (`None`
     if local/unpinned); `upstream_ahead` is True/False from the git port or `None`
     when undetermined (offline / git error / local / no pin); `drift` is True when
-    SKILL.md was hand-edited away from its snapshot; `linked` is True when the skill
-    is reachable through a direct entry in the target skills dir.
+    SKILL.md was hand-edited away from its snapshot; `installed` is True when every
+    target skills dir holds a copy of this skill.
     """
 
     name: str
@@ -58,7 +60,7 @@ class SkillStatus:
     synced_sha: str | None
     upstream_ahead: bool | None
     drift: bool
-    linked: bool
+    installed: bool
 
 
 def gather_status(
@@ -66,7 +68,7 @@ def gather_status(
     root: Path,
     *,
     git: GitPort | None,
-    target_dir: Path,
+    target_dirs: list[Path],
 ) -> list[SkillStatus]:
     """Build a status row for every skill folder under `root/skills/`.
 
@@ -74,7 +76,7 @@ def gather_status(
     local skills appear alongside vendored ones. Each row is joined against
     `sources.yaml` to recover its pin (sha, ref, accept rules) when vendored; a row
     with no pin is `local`. `git=None` skips the (online) upstream-ahead probe.
-    `target_dir` is the skills dir the link state is checked against.
+    `target_dirs` are the skills dirs the install state is checked against.
 
     The upstream-ahead probe resolves each distinct `(repo, ref)` head exactly once,
     concurrently, so N pins over M repos cost M (not N) network round-trips.
@@ -87,7 +89,7 @@ def gather_status(
         context = (
             _PinContext(match[0].repo, match[0].ref, match[1]) if match else None
         )
-        rows.append(_status_one(layout, context, heads, target_dir, root))
+        rows.append(_status_one(layout, context, heads, target_dirs))
     return rows
 
 
@@ -131,8 +133,7 @@ def _status_one(
     layout: SkillLayout,
     context: "_PinContext | None",
     heads: dict[tuple[str, str], str | None],
-    target_dir: Path,
-    root: Path,
+    target_dirs: list[Path],
 ) -> SkillStatus:
     """Assemble the status signals for one on-disk skill (vendored or local).
 
@@ -146,7 +147,7 @@ def _status_one(
         synced_sha=_short(pin.synced_sha) if pin else None,
         upstream_ahead=_upstream_ahead(context, heads),
         drift=detect_drift(read_skill(layout)) is not None,
-        linked=_is_linked(layout, target_dir, root),
+        installed=_is_installed(layout, target_dirs),
     )
 
 
@@ -173,8 +174,14 @@ def _upstream_ahead(
     return head != context.pin.synced_sha
 
 
-def _is_linked(layout: SkillLayout, target_dir: Path, root: Path) -> bool:
-    """Return True when the target exposes this skill as a direct named entry."""
+def _is_installed(layout: SkillLayout, target_dirs: list[Path]) -> bool:
+    """Return True when every target dir holds a copy installed from this skill.
+
+    A skill present in some targets but not others reports False — the fix is one
+    `skillsync install` run, which reconciles them all. A legacy symlink does not
+    count: it is exactly what installing replaces.
+    """
     source = layout.root.resolve()
-    target_path = target_dir / layout.name
-    return target_path.is_dir() and target_path.resolve() == source
+    return all(
+        installed_from(target_dir / layout.name) == source for target_dir in target_dirs
+    )

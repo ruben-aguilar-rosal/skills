@@ -4,12 +4,14 @@
 `synced_sha` from its pin, whether upstream is ahead (via the injected `GitPort`,
 offline-tolerant — `None` when it cannot be determined), whether the committed
 `SKILL.md` has drifted from its `.generated` snapshot, and whether the skill is
-linked into the target skills dir. The git port is optional so these tests run
+installed into every target skills dir. The git port is optional so these tests run
 with `git=None` (offline) except where upstream-ahead is exercised explicitly.
 """
 
+import json
 from pathlib import Path
 
+from skillsync.commands.install import MARKER_NAME, run_install
 from skillsync.commands.status import SkillStatus, gather_status
 from skillsync.config import Config, SkillPin, Source
 from skillsync.layout import write_text
@@ -35,7 +37,7 @@ def test_status_reports_short_sha_and_drift_offline(tmp_path: Path) -> None:
     write_text(tmp_path / "skills" / "demo" / ".generated" / "SKILL.md", "generated\n")
     config = _config("demo", "abcdef1234567")
 
-    rows = gather_status(config, tmp_path, git=None, target_dir=tmp_path / "links")
+    rows = gather_status(config, tmp_path, git=None, target_dirs=[tmp_path / "links"])
 
     assert [r.name for r in rows] == ["demo"]
     row = rows[0]
@@ -44,7 +46,7 @@ def test_status_reports_short_sha_and_drift_offline(tmp_path: Path) -> None:
     assert row.synced_sha == "abcdef1"
     assert row.drift is True
     assert row.upstream_ahead is None
-    assert row.linked is False
+    assert row.installed is False
 
 
 def test_status_no_drift_when_skill_matches_snapshot(tmp_path: Path) -> None:
@@ -53,66 +55,69 @@ def test_status_no_drift_when_skill_matches_snapshot(tmp_path: Path) -> None:
     write_text(tmp_path / "skills" / "demo" / ".generated" / "SKILL.md", "same\n")
     config = _config("demo", "abc1234")
 
-    [row] = gather_status(config, tmp_path, git=None, target_dir=tmp_path / "links")
+    [row] = gather_status(config, tmp_path, git=None, target_dirs=[tmp_path / "links"])
 
     assert row.drift is False
 
 
-def test_status_reports_linked_state_through_direct_skill_symlink(tmp_path: Path) -> None:
-    """A skill is linked when its direct global entry resolves to its folder."""
+def test_status_reports_installed_after_install_run(tmp_path: Path) -> None:
+    """A skill is installed when the target holds a copy made from its folder."""
+    write_text(tmp_path / "skills" / "documents" / "demo" / "SKILL.md", "x\n")
+    target = tmp_path / "links"
+    run_install(tmp_path, target_dirs=[target], skill_sets={"documents"})
+    config = Config(
+        sources=[
+            Source(
+                repo="owner/repo",
+                ref="main",
+                dest="skills/documents",
+                skills=[SkillPin(path="upstream/demo", synced_sha="abc1234")],
+            )
+        ]
+    )
+
+    [row] = gather_status(config, tmp_path, git=None, target_dirs=[target])
+
+    assert row.installed is True
+
+
+def test_status_uninstalled_when_missing_from_one_target(tmp_path: Path) -> None:
+    """Installed in one target but not the other still reports uninstalled."""
+    write_text(tmp_path / "skills" / "documents" / "demo" / "SKILL.md", "x\n")
+    agents, claude = tmp_path / "agents", tmp_path / "claude"
+    run_install(tmp_path, target_dirs=[agents], skill_sets={"documents"})
+
+    [row] = gather_status(
+        Config(sources=[]), tmp_path, git=None, target_dirs=[agents, claude]
+    )
+
+    assert row.installed is False
+
+
+def test_status_uninstalled_when_copy_records_another_source(tmp_path: Path) -> None:
+    """A copy under this name installed from somewhere else does not count."""
+    write_text(tmp_path / "skills" / "documents" / "demo" / "SKILL.md", "x\n")
+    target = tmp_path / "links"
+    marker = {"digest": "d", "source": str(tmp_path / "elsewhere" / "demo")}
+    write_text(target / "demo" / MARKER_NAME, json.dumps(marker))
+
+    [row] = gather_status(Config(sources=[]), tmp_path, git=None, target_dirs=[target])
+
+    assert row.installed is False
+
+
+def test_status_uninstalled_through_legacy_symlinks(tmp_path: Path) -> None:
+    """Links left by the symlink era do not count: installing is what replaces them."""
     skill = tmp_path / "skills" / "documents" / "demo"
     write_text(skill / "SKILL.md", "x\n")
     target = tmp_path / "links"
     target.mkdir()
     (target / "demo").symlink_to(skill.resolve())
-    config = Config(
-        sources=[
-            Source(
-                repo="owner/repo",
-                ref="main",
-                dest="skills/documents",
-                skills=[SkillPin(path="upstream/demo", synced_sha="abc1234")],
-            )
-        ]
-    )
-
-    [row] = gather_status(config, tmp_path, git=None, target_dir=target)
-
-    assert row.linked is True
-
-
-def test_status_unlinked_when_direct_skill_symlink_points_elsewhere(tmp_path: Path) -> None:
-    """A direct skill link pointing elsewhere does not count as linked."""
-    write_text(tmp_path / "skills" / "documents" / "demo" / "SKILL.md", "x\n")
-    target = tmp_path / "links"
-    target.mkdir()
-    (target / "demo").symlink_to(tmp_path / "somewhere-else")
-    config = Config(
-        sources=[
-            Source(
-                repo="owner/repo",
-                ref="main",
-                dest="skills/documents",
-                skills=[SkillPin(path="upstream/demo", synced_sha="abc1234")],
-            )
-        ]
-    )
-
-    [row] = gather_status(config, tmp_path, git=None, target_dir=target)
-
-    assert row.linked is False
-
-
-def test_status_unlinked_through_legacy_category_symlink(tmp_path: Path) -> None:
-    """A legacy category symlink no longer counts as a Claude Code-compatible link."""
-    write_text(tmp_path / "skills" / "documents" / "demo" / "SKILL.md", "x\n")
-    target = tmp_path / "links"
-    target.mkdir()
     (target / "documents").symlink_to((tmp_path / "skills" / "documents").resolve())
 
-    [row] = gather_status(Config(sources=[]), tmp_path, git=None, target_dir=target)
+    [row] = gather_status(Config(sources=[]), tmp_path, git=None, target_dirs=[target])
 
-    assert row.linked is False
+    assert row.installed is False
 
 
 def test_status_upstream_ahead_via_git(tmp_path: Path) -> None:
@@ -124,7 +129,7 @@ def test_status_upstream_ahead_via_git(tmp_path: Path) -> None:
     git.set_ref("main", "sha2")
     config = _config("demo", "sha1")
 
-    [row] = gather_status(config, tmp_path, git=git, target_dir=tmp_path / "links")
+    [row] = gather_status(config, tmp_path, git=git, target_dirs=[tmp_path / "links"])
 
     assert row.upstream_ahead is True
 
@@ -137,7 +142,7 @@ def test_status_upstream_not_ahead_when_synced_to_head(tmp_path: Path) -> None:
     git.set_ref("main", "sha1")
     config = _config("demo", "sha1")
 
-    [row] = gather_status(config, tmp_path, git=git, target_dir=tmp_path / "links")
+    [row] = gather_status(config, tmp_path, git=git, target_dirs=[tmp_path / "links"])
 
     assert row.upstream_ahead is False
 
@@ -148,7 +153,7 @@ def test_status_upstream_ahead_none_on_git_error(tmp_path: Path) -> None:
     git = FakeGit()  # empty history: any ref lookup raises GitError
     config = _config("demo", "sha1")
 
-    [row] = gather_status(config, tmp_path, git=git, target_dir=tmp_path / "links")
+    [row] = gather_status(config, tmp_path, git=git, target_dirs=[tmp_path / "links"])
 
     assert row.upstream_ahead is None
 
@@ -168,7 +173,7 @@ def test_status_reads_skill_under_custom_dest(tmp_path: Path) -> None:
         ]
     )
 
-    [row] = gather_status(config, tmp_path, git=None, target_dir=tmp_path / "links")
+    [row] = gather_status(config, tmp_path, git=None, target_dirs=[tmp_path / "links"])
 
     assert row.name == "demo"
     assert row.synced_sha == "abc1234"
@@ -178,7 +183,7 @@ def test_status_reads_skill_under_custom_dest(tmp_path: Path) -> None:
 def test_status_empty_repo_yields_no_rows(tmp_path: Path) -> None:
     """A repo with no skill folders yields no status rows."""
     rows = gather_status(
-        Config(sources=[]), tmp_path, git=None, target_dir=tmp_path / "links"
+        Config(sources=[]), tmp_path, git=None, target_dirs=[tmp_path / "links"]
     )
 
     assert rows == []
@@ -217,7 +222,7 @@ def test_status_resolves_each_repo_head_once(tmp_path: Path) -> None:
         ]
     )
 
-    rows = gather_status(config, tmp_path, git=git, target_dir=tmp_path / "links")
+    rows = gather_status(config, tmp_path, git=git, target_dirs=[tmp_path / "links"])
 
     assert len(rows) == 3
     assert all(r.upstream_ahead is False for r in rows)
@@ -238,7 +243,7 @@ def test_status_uses_remote_head_not_mirror(tmp_path: Path) -> None:
     git.set_ref("main", "sha1")
     config = _config("demo", "sha1")
 
-    [row] = gather_status(config, tmp_path, git=git, target_dir=tmp_path / "links")
+    [row] = gather_status(config, tmp_path, git=git, target_dirs=[tmp_path / "links"])
 
     assert row.upstream_ahead is False
     assert git.remote_head_calls == [("owner/repo", "main")]
@@ -249,7 +254,7 @@ def test_status_includes_local_skill_absent_from_config(tmp_path: Path) -> None:
     write_text(tmp_path / "skills" / "meta" / "mine" / "SKILL.md", "x\n")
 
     [row] = gather_status(
-        Config(sources=[]), tmp_path, git=None, target_dir=tmp_path / "links"
+        Config(sources=[]), tmp_path, git=None, target_dirs=[tmp_path / "links"]
     )
 
     assert row.name == "mine"
@@ -264,7 +269,7 @@ def test_status_lists_both_vendored_and_local(tmp_path: Path) -> None:
     write_text(tmp_path / "skills" / "meta" / "mine" / "SKILL.md", "m\n")
     config = _config("vend", "abc1234")
 
-    rows = gather_status(config, tmp_path, git=None, target_dir=tmp_path / "links")
+    rows = gather_status(config, tmp_path, git=None, target_dirs=[tmp_path / "links"])
 
     by_name = {r.name: r.origin for r in rows}
     assert by_name == {"mine": "local", "vend": "vendored"}

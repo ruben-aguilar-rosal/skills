@@ -1,5 +1,6 @@
 """Tests for the skillsync CLI skeleton."""
 
+import os
 import re
 from pathlib import Path
 
@@ -69,8 +70,8 @@ def _write_sources(tmp_path: Path, body: str) -> Path:
     return config_path
 
 
-def test_status_reports_sha_drift_and_link_state(tmp_path: Path) -> None:
-    """`skillsync status` (offline) reports each skill's sha, drift, and link state."""
+def test_status_reports_sha_drift_and_install_state(tmp_path: Path) -> None:
+    """`skillsync status` (offline) reports each skill's sha, drift, install state."""
     write_text(tmp_path / "skills" / "alpha" / "SKILL.md", "hand-edited")
     write_text(tmp_path / "skills" / "alpha" / ".generated" / "SKILL.md", "generated")
     write_text(tmp_path / "skills" / "beta" / "SKILL.md", "same")
@@ -114,36 +115,41 @@ def test_status_reports_no_skills(tmp_path: Path) -> None:
     assert "no skills" in result.stdout.lower()
 
 
-def test_link_symlinks_selected_skills_directly_into_target_dir(
+def test_install_copies_selected_skills_into_every_target_dir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`skillsync link` exposes every selected skill in the overridden target."""
+    """`skillsync install` copies every selected skill into each overridden target."""
     write_text(tmp_path / "skills" / "documents" / "demo" / "SKILL.md", "# demo\n")
-    target = tmp_path / "agent_skills"
-    monkeypatch.setenv("SKILLSYNC_LINK_DIR", str(target))
+    agents, claude = tmp_path / "agents", tmp_path / "claude"
+    monkeypatch.setenv(
+        "SKILLSYNC_INSTALL_DIR", os.pathsep.join([str(agents), str(claude)])
+    )
 
     result = RUNNER.invoke(
-        app, ["link", "--root", str(tmp_path), "--skill-set", "documents"]
+        app, ["install", "--root", str(tmp_path), "--skill-set", "documents"]
     )
 
     assert result.exit_code == 0
     assert "demo" in result.stdout
-    assert (target / "demo").resolve() == (tmp_path / "skills" / "documents" / "demo").resolve()
-    assert not (target / "documents").exists()
+    for target in (agents, claude):
+        assert str(target) in result.stdout
+        assert (target / "demo" / "SKILL.md").read_text() == "# demo\n"
+        assert not (target / "demo").is_symlink()
+        assert not (target / "documents").exists()
 
 
-def test_link_requires_skill_set(tmp_path: Path) -> None:
-    """`skillsync link` rejects an unscoped activation request."""
-    result = RUNNER.invoke(app, ["link", "--root", str(tmp_path)])
+def test_install_requires_skill_set(tmp_path: Path) -> None:
+    """`skillsync install` rejects an unscoped activation request."""
+    result = RUNNER.invoke(app, ["install", "--root", str(tmp_path)])
 
     assert result.exit_code != 0
     assert "--skill-set" in _ANSI_ESCAPE.sub("", result.output)
 
 
-def test_link_append_preserves_existing_skills(
+def test_install_append_preserves_existing_skills(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`skillsync link --append` activates a set without deactivating prior links."""
+    """`skillsync install --append` adds a set without deactivating prior copies."""
     documents = tmp_path / "skills" / "documents" / "demo"
     engineering = tmp_path / "skills" / "engineering" / "existing"
     write_text(documents / "SKILL.md", "# demo\n")
@@ -151,30 +157,30 @@ def test_link_append_preserves_existing_skills(
     target = tmp_path / "agent_skills"
     target.mkdir()
     (target / "existing").symlink_to(engineering)
-    monkeypatch.setenv("SKILLSYNC_LINK_DIR", str(target))
+    monkeypatch.setenv("SKILLSYNC_INSTALL_DIR", str(target))
 
     result = RUNNER.invoke(
         app,
-        ["link", "--root", str(tmp_path), "--skill-set", "documents", "--append"],
+        ["install", "--root", str(tmp_path), "--skill-set", "documents", "--append"],
     )
 
     assert result.exit_code == 0
     assert "demo" in result.stdout
-    assert (target / "demo").resolve() == documents.resolve()
+    assert (target / "demo" / "SKILL.md").read_text() == "# demo\n"
     assert (target / "existing").resolve() == engineering.resolve()
 
 
-def test_link_dry_run_makes_no_changes(
+def test_install_dry_run_makes_no_changes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`skillsync link --dry-run` prints the plan without touching the filesystem."""
+    """`skillsync install --dry-run` prints the plan without touching the filesystem."""
     write_text(tmp_path / "skills" / "documents" / "demo" / "SKILL.md", "# demo\n")
     target = tmp_path / "agent_skills"
-    monkeypatch.setenv("SKILLSYNC_LINK_DIR", str(target))
+    monkeypatch.setenv("SKILLSYNC_INSTALL_DIR", str(target))
 
     result = RUNNER.invoke(
         app,
-        ["link", "--root", str(tmp_path), "--skill-set", "documents", "--dry-run"],
+        ["install", "--root", str(tmp_path), "--skill-set", "documents", "--dry-run"],
     )
 
     assert result.exit_code == 0

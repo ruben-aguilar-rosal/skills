@@ -36,11 +36,11 @@ These are anti-slop design skills: they steer the agent away from generic, templ
 
 ### Activate locally
 
-Vendored skills are not linked into your Claude config by default. To symlink every
-configured skill (including these) into `~/.claude/skills`:
+Vendored skills are not installed into your agent config by default. To copy every
+skill in this set into `~/.agents/skills` and `~/.claude/skills`:
 
 ```bash
-uv run skillsync link
+uv run skillsync install --skill-set ui
 ```
 
 ## Updating

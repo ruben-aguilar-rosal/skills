@@ -45,10 +45,11 @@ surface) — do not hand-edit it.
 The agent auto-loads a skill when a request matches its `description` (the trigger column above).
 To invoke one explicitly, name it, e.g. *"use `refactor-module` to break this up"*.
 
-Vendored skills are **unlinked** by default. Activate them under `~/.claude/skills`:
+Vendored skills are **not installed** by default. Activate them under `~/.agents/skills`
+and `~/.claude/skills`:
 
 ```bash
-uv run skillsync link
+uv run skillsync install --skill-set iac
 ```
 
 ## Updating

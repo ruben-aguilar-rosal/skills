@@ -7,7 +7,7 @@ These create, read, and edit `.docx`/`.pptx`/`.xlsx`/`.pdf` files. They bundle a
 `scripts/office/` toolkit (LibreOffice helpers + OOXML schemas).
 
 > **Overlap note:** the installed `document-skills` plugin also provides docx/pdf/pptx/xlsx.
-> These are a repo-pinned copy; if both are linked, expect duplicate skills by the same
+> These are a repo-pinned copy; if both are active, expect duplicate skills by the same
 > `name` and pick which to activate.
 
 ## Skills in this folder
