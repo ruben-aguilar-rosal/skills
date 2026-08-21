@@ -62,17 +62,25 @@ resolved, so they reappear each run until the user drops one.
 
 Number them, bottom layer first. Copilot, Aikido and people go in one list.
 
-**Done when** the list holds every unresolved thread from every pull request in step 1, each with a
-number, a pull request, a path and a line.
+Show the user the **count only**, on one line: `12 unresolved: PR 947 x3, PR 948 x2, PR 950 x7.`
+The contents belong to step 4, one at a time.
 
-## 4. Give every item a verdict
+**Done when** you hold the ordered list, and the user has seen the count and nothing else.
 
-Write no code in this step. Bots repeat themselves and separate fixes often merge into one.
+## 4. One card, one verdict, repeat
 
-Print **one card**, then wait for the verdict.
+A loop. One pass per item.
+
+**Your message ends with the card.** Nothing follows it: no second card, no summary, no next steps.
+
+- **4a.** Print the card for the next item.
+- **4b.** Stop. Wait for the verdict.
+- **4c.** Acknowledge in one line. Go to 4a.
+
+Write no code anywhere in this step. Bots repeat themselves and separate fixes often merge into one.
 
 ```
-PR 102 - src/api/routes.py:88 - Copilot
+(#4 of 12)  PR 102 - src/api/routes.py:88 - Copilot
 
 What happens
   <one or two sentences>
@@ -104,8 +112,8 @@ Three verdicts:
 2. **drop** it, with a reply.
 3. **defer** it. Draft a Linear ticket, reply with the key.
 
-**Done when** every numbered item from step 3 has one of the three verdicts written beside it. Not
-most. Every one.
+**Done when** every numbered item from step 3 has one of the three verdicts. Twelve items take
+twelve messages. Reaching this in one message means the loop was skipped, not finished.
 
 ## 5. Build the fixes
 
