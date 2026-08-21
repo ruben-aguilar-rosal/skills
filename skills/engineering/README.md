@@ -6,7 +6,7 @@ Engineering workflow skills vendored verbatim from several upstreams:
 - [`multica-ai/andrej-karpathy-skills`](https://github.com/multica-ai/andrej-karpathy-skills) (synced at `2c60614`) — `karpathy-guidelines`
 - [`anthropics/skills`](https://github.com/anthropics/skills) (synced at `3541475`) — `mcp-builder`, `webapp-testing`, `skill-creator`
 - [`github/gh-stack`](https://github.com/github/gh-stack) (`skills/gh-stack`, synced at `ab00aa4`) — `gh-stack`
-- Personal `git-flow` plugin — `ship`
+- Personal — `ship`, `split-pr`, `ship-stack`, `pr-review`
 
 These cover the build loop: design, plan-to-issues, implement, test, diagnose, build MCP
 servers / skills, and the behavioral guidelines that keep changes surgical.
@@ -27,7 +27,10 @@ servers / skills, and the behavioral guidelines that keep changes surgical.
 | `mcp-builder` | Build high-quality MCP servers (Python FastMCP or Node/TypeScript SDK). *(anthropics)* |
 | `prototype` | Build a throwaway prototype — runnable terminal app or toggleable UI variations. |
 | `resolving-merge-conflicts` | Resolve an in-progress git merge/rebase conflict. |
-| `ship` | Commit, push, and open a GitHub PR using conventional commits and a standard branch flow. |
+| `ship` | Map for shipping work: names the phase and starts one of the three below. |
+| `split-pr` | Cut a finished branch into stacked PRs under the size limit, human-approved. |
+| `ship-stack` | Sync, verify, push, and open every layer as a draft PR with a real title and body. |
+| `pr-review` | Green the checks, triage every unresolved comment one at a time, one commit per round. |
 | `setup-matt-pocock-skills` | One-time repo setup for the mattpocock skills (issue tracker, triage labels, domain docs). |
 | `skill-creator` | Create/edit skills, run evals, benchmark performance, optimize descriptions. *(anthropics)* |
 | `tdd` | Test-driven development (red-green-refactor, integration tests). |
