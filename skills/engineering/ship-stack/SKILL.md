@@ -90,8 +90,8 @@ Per pull request, `gh pr edit <n> --title ... --body-file ...`:
   A scope is allowed and rarely needed. No ticket key. On a stack, say what **that layer** does.
 - **References:** `* **Issue:** [OPT-123](<url>)` from `linear issue url OPT-123`. Untouched rows
   get `N/A`.
-- **Description:** first sentence says why. Then one bullet per real change. 150 words of prose,
-  counting nothing pasted.
+- **Description:** first sentence says why. Then one bullet per real change. Length per
+  `optiak-writing` `B5`.
 - **Tests:** the step 2 commands and what they printed.
 - **Checklist:** tick only what was done. Name the rest in your report.
 

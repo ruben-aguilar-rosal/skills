@@ -62,17 +62,25 @@ resolved, so they reappear each run until the user drops one.
 
 Number them, bottom layer first. Copilot, Aikido and people go in one list.
 
-**Done when** the list holds every unresolved thread from every pull request in step 1, each with a
-number, a pull request, a path and a line.
+Show the user the **count only**, on one line: `12 unresolved: PR 947 x3, PR 948 x2, PR 950 x7.`
+The contents belong to step 4, one at a time.
 
-## 4. Give every item a verdict
+**Done when** you hold the ordered list, and the user has seen the count and nothing else.
 
-Write no code in this step. Bots repeat themselves and separate fixes often merge into one.
+## 4. One card, one verdict, repeat
 
-Print **one card**, then wait for the verdict.
+A loop. One pass per item.
+
+**Your message ends with the card.** Nothing follows it: no second card, no summary, no next steps.
+
+- **4a.** Print the card for the next item.
+- **4b.** Stop. Wait for the verdict.
+- **4c.** Acknowledge in one line. Go to 4a.
+
+Write no code anywhere in this step. Bots repeat themselves and separate fixes often merge into one.
 
 ```
-PR 102 - src/api/routes.py:88 - Copilot
+(#4 of 12)  PR 102 - src/api/routes.py:88 - Copilot
 
 What happens
   <one or two sentences>
@@ -102,10 +110,13 @@ Three verdicts:
 
 1. **fix** here, in this pull request.
 2. **drop** it, with a reply.
-3. **defer** it. Draft a Linear ticket, reply with the key.
+3. **defer** it. Run `/file-issue`, then reply with the key it returns.
 
-**Done when** every numbered item from step 3 has one of the three verdicts written beside it. Not
-most. Every one.
+Where the workspace holds a `FOLLOW-UPS.md`, each verdict also gets an entry. `optiak-tracker`
+`B3` has the rule.
+
+**Done when** every numbered item from step 3 has one of the three verdicts. Twelve items take
+twelve messages. Reaching this in one message means the loop was skipped, not finished.
 
 ## 5. Build the fixes
 
@@ -122,33 +133,47 @@ gh stack rebase --upstack
 gh stack push
 ```
 
-Run the repo's checks once over the finished set, plus `uvx prek run --from-ref origin/<default>
---to-ref HEAD` where a `prek.toml` or `.pre-commit-config.yaml` exists. Fold any rewrite into the
-same commit. Show the user one diff and wait. On their word: commit, rebase, push.
+Run the repo's checks once over the finished set, plus the hook check from `../ship-stack/SKILL.md`
+step 2. Fold any rewrite into the same commit. Show the user one diff and wait. On their word:
+commit, rebase, push.
 
 One commit for the round. Two only when the fixes are unrelated.
 
 **Done when** every **fix** item is in a commit, the checks are green, and the stack is pushed.
 
-## 6. Draft the replies
+## 6. Draft the replies, one at a time
 
-One reply per item from step 3, same order, one copyable block. Under 50 words each. State the
-decision and stop.
+A loop, like step 4. One reply per item from step 3, same order.
+
+**Your message ends with the reply.** Nothing follows it: no second reply, no summary.
+
+- **6a.** Print the item line, the thread URL, and the reply. Nothing else.
+- **6b.** Stop. Wait.
+- **6c.** Rejected: rewrite. Go to 6b.
+- **6d.** Approved: copy it, say so, stop. On their word, go to 6a.
+
+Under 50 words. State the decision and stop. Run each reply through `unslop` and
+`asd-ste100-skill` before printing.
 
 ```
-#1  src/api/routes.py:88
-    Fixed in 4a91c2c. Guard added, test covers the empty case.
+(#3 of 12)  PR 947 - src/api/routes.py:88
+https://github.com/<owner>/<repo>/pull/947#discussion_r123456789
 
-#2  src/db/session.py:12
-    Not changing this. The caller builds the list, so it is never empty here.
-
-#3  src/api/routes.py:140
-    Real, but out of scope for this PR. Tracked as OPT-871.
+Fixed in 4a91c2c. The guard is added. A test covers the empty case.
 ```
 
-Run the block through `unslop` and `asd-ste100-skill` before printing.
+Copy with a quoted heredoc, so no backtick or `$` expands:
 
-**Done when** every item from step 3 has a reply in the block.
+```bash
+pbcopy <<'REPLY'
+Fixed in 4a91c2c. The guard is added. A test covers the empty case.
+REPLY
+```
+
+Copy the reply text only: no item line, no URL, no code fence. The clipboard holds one reply, so
+never copy ahead.
+
+**Done when** every item from step 3 has been copied or dropped. Twelve items take twelve messages.
 
 ## 7. Hand back
 

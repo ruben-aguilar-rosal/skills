@@ -6,7 +6,8 @@ Engineering workflow skills vendored verbatim from several upstreams:
 - [`multica-ai/andrej-karpathy-skills`](https://github.com/multica-ai/andrej-karpathy-skills) (synced at `2c60614`) — `karpathy-guidelines`
 - [`anthropics/skills`](https://github.com/anthropics/skills) (synced at `3541475`) — `mcp-builder`, `webapp-testing`, `skill-creator`
 - [`github/gh-stack`](https://github.com/github/gh-stack) (`skills/gh-stack`, synced at `ab00aa4`) — `gh-stack`
-- Personal — `ship`, `split-pr`, `ship-stack`, `pr-review`
+- Personal — `ship`, `split-pr`, `ship-stack`, `pr-review`, `file-issue`, `clear-triage`, `cold-review`, `land-tickets`, `plan-status`, `start-ticket`, `cleanup-workspace`
+- Optiak standards — `optiak-behaviours`, `optiak-writing`, `optiak-tracker`
 
 These cover the build loop: design, plan-to-issues, implement, test, diagnose, build MCP
 servers / skills, and the behavioral guidelines that keep changes surgical.
@@ -27,10 +28,20 @@ servers / skills, and the behavioral guidelines that keep changes surgical.
 | `mcp-builder` | Build high-quality MCP servers (Python FastMCP or Node/TypeScript SDK). *(anthropics)* |
 | `prototype` | Build a throwaway prototype — runnable terminal app or toggleable UI variations. |
 | `resolving-merge-conflicts` | Resolve an in-progress git merge/rebase conflict. |
-| `ship` | Map for shipping work: names the phase and starts one of the three below. |
+| `ship` | Map for shipping work: measures the diff, then starts one of the three below. Under 400 lines it opens the PR itself. |
 | `split-pr` | Cut a finished branch into stacked PRs under the size limit, human-approved. |
 | `ship-stack` | Sync, verify, push, and open every layer as a draft PR with a real title and body. |
 | `pr-review` | Green the checks, triage every unresolved comment one at a time, one commit per round. |
+| `file-issue` | Write and file one Linear ticket to the Optiak standard. Lands in Triage. |
+| `clear-triage` | Bring a ticket up to the standard and move it from Triage to Backlog, behind one approval. |
+| `cold-review` | Two sub-agents read the diff with no framing: Optiak behaviours, and over-engineering. |
+| `land-tickets` | Turn a finished local plan into a Linear ticket set with its blocking graph, behind one approval. |
+| `plan-status` | Status board for a plan: overview, tickets, blocking graph, and what can be picked next. |
+| `optiak-behaviours` | Reference: how you work, and what you write into the code. `B1`, `B2`, `B4`. |
+| `optiak-writing` | Reference: Simplified Technical English, and what a PR body holds. `B5`, `B6`. |
+| `optiak-tracker` | Reference: where Optiak work is tracked and what a ticket carries. `B3`. |
+| `start-ticket` | Build the Orca workspace for a ticket: clone its repos, open the group, start the working agent. |
+| `cleanup-workspace` | The reverse of `start-ticket`: archive the loose files, drop the clones, the group and the folder. |
 | `setup-matt-pocock-skills` | One-time repo setup for the mattpocock skills (issue tracker, triage labels, domain docs). |
 | `skill-creator` | Create/edit skills, run evals, benchmark performance, optimize descriptions. *(anthropics)* |
 | `tdd` | Test-driven development (red-green-refactor, integration tests). |
