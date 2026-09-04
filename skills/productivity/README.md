@@ -8,6 +8,7 @@ Productivity skills vendored verbatim from:
 - [`composio-community/awesome-agent-clis`](https://github.com/composio-community/awesome-agent-clis) (synced at `9f765d2`) — `ntn`
 - [`danyuchn/asd-ste100-skill`](https://github.com/danyuchn/asd-ste100-skill) (`master`, synced at `8564f89`) — `asd-ste100-skill`
 - [`cursor/plugins`](https://github.com/cursor/plugins) (`pstack/skills/`, synced at `fd6dd6f`) — `unslop`
+- [`humanlayer/skills`](https://github.com/humanlayer/skills) (`plugins/show-me/`, synced at `3c26291`) — `show-me`
 
 These are thinking/working aids: stress-testing plans, co-authoring docs, building rich
 web artifacts, handing off context, and learning.
@@ -26,6 +27,7 @@ web artifacts, handing off context, and learning.
 | `linear` | Linear CLI reference: manage issues, projects, teams, cycles, milestones, documents, and raw GraphQL queries from the terminal. Hand-authored (not vendored). |
 | `ntn` | Notion CLI reference: authenticate, call the Notion API, upload files, manage Workers. Frontmatter `name` is `Notion CLI (ntn)`. *(composio-community)* |
 | `perplexity-search` | Research current web information with the local Perplexity CLI through the direct API or OpenRouter. |
+| `show-me` | Explain the current topic visually instead of in prose: pseudocode, call trees, ASCII box/flow diagrams, type sketches, or a focused HTML artifact. Picks the smallest view that makes the point. *(humanlayer)* |
 | `teach` | Teach you a new skill or concept within this workspace. |
 | `unslop` | Cut AI tells from writing: puffery, AI vocabulary, em dashes, rule-of-three, inline-header lists, passive voice, filler. 31 numbered patterns plus an "add soul" pass (have opinions, vary rhythm, be specific). Overlaps `humanizer` — `unslop` is the terser checklist and bans em dashes outright. *(cursor)* |
 | `web-artifacts-builder` | Build elaborate multi-component claude.ai HTML artifacts (React, Tailwind, shadcn/ui) — good for interactive web reports. *(anthropics)* |
@@ -47,6 +49,8 @@ web artifacts, handing off context, and learning.
   `unslop` is also broadly self-activating: its `description` reads *"Must always apply"*,
   so it shapes prose on every writing task once installed. Disable it, or keep `humanizer`
   instead, if you don't want two overlapping de-slop passes running at once.
+  `show-me` activates when you ask to see, sketch, draw, or visualise the thing under
+  discussion, and it is safe to invoke by hand as `/show-me`.
 - **Explicit:** the rest are `disable-model-invocation` — invoke them yourself, e.g.
   *"use the `handoff` skill"* or `/teach`.
 - Run `uv run skillsync install --skill-set productivity` to copy these skills into
@@ -73,6 +77,9 @@ web artifacts, handing off context, and learning.
   This is also the repo's first **root-level** upstream: the repo *is* the skill, with
   `SKILL.md` at the top rather than in a subfolder, so its pin is `path: .` plus an explicit
   `name:` naming the local folder.
+- `show-me` carries no overrides. Its folder name matches its frontmatter `name` and
+  SkillSpector scored it `0` / SAFE with zero findings (one markdown file, no scripts,
+  no network calls).
 - `unslop` carries no overrides. Its folder name matches its frontmatter `name` and
   SkillSpector scored it `0` / SAFE with zero findings (one markdown file, no scripts).
 

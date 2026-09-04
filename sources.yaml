@@ -769,3 +769,12 @@ sources:
     hold: false
     dest: skills/engineering
     accept_invalid: true
+- repo: humanlayer/skills
+  ref: main
+  watch: []
+  ignore: []
+  skills:
+  - path: plugins/show-me/skills/show-me
+    synced_sha: 3c2629142c5d437428269b1b722b08c0b87f574d
+    hold: false
+    dest: skills/productivity
