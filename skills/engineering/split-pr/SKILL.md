@@ -18,17 +18,12 @@ Layer design: `../gh-stack/references/stack-design.md`. Commands: `../gh-stack/S
 
 ## 1. Measure
 
-```bash
-git fetch origin
-BASE=$(git remote show origin | sed -n 's/.*HEAD branch: //p')
-git diff --numstat origin/$BASE...HEAD
-```
+Run the commands in `../ship/references/measure-the-diff.md`. They hold the generated-file list
+and count the working tree, which a plain `git diff` against the base does not.
 
-Sum added and removed separately. Drop generated rows first: `uv.lock`, `pnpm-lock.yaml`,
-`.terraform.lock.hcl`. A rename shows `0 0 old => new`.
-
-- **Under 400 added and 400 removed:** name the counts, say no stack is needed, stop. The user runs
-  `/ship-stack`.
+- **400 or under each way:** name the counts, say no stack is needed, stop. The user runs
+  `/ship-stack`. `/ship` measures before it routes, so reaching this outcome means they came
+  straight to this file.
 - **Over, and every changed line is mechanical** (tool rename, formatter, dependency bump): say
   which of the three and ask the user. Their answer decides.
 
