@@ -55,7 +55,7 @@ skipped (see *Not vendored* below).
 |---|---|
 | `setting-up-ec2-instance-profiles` | Attach IAM roles to EC2 via instance profiles. |
 | `launching-ec2-instance-with-best-practices` | Launch EC2 with secure, cost-efficient defaults. |
-| `creating-ec2-image-builder-pipeline` | Build/distribute custom AMIs with Image Builder. |
+| `amazon-ec2-image-builder` | Build/distribute custom AMIs and container images with Image Builder. |
 
 ### Database (3)
 | Skill | Use it for |
