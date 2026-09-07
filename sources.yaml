@@ -239,9 +239,11 @@ sources:
     accept_findings:
     - TM1
   - path: skills/frontend-design
-    synced_sha: 35414756ca55738e050562e272a6bbc6273aa926
+    synced_sha: 41bbe19d1a1a7eaab5e7bb9050a417e5c6cffc8f
     hold: false
     dest: skills/ui/anthropic
+    accept_findings:
+    - AR2
   - path: skills/theme-factory
     synced_sha: 35414756ca55738e050562e272a6bbc6273aa926
     hold: false
@@ -355,22 +357,22 @@ sources:
     dest: skills/aws
     accept_invalid: true
   - path: skills/core-skills/aws-cloudformation
-    synced_sha: 4b8f1820ef4efa55bf3941191beec031f2681ae4
+    synced_sha: 8ea26bdf9c8b3719e6b5488709f4efecde5a0d93
     hold: false
     dest: skills/aws
     accept_invalid: true
   - path: skills/core-skills/aws-containers
-    synced_sha: 4b8f1820ef4efa55bf3941191beec031f2681ae4
+    synced_sha: 8ea26bdf9c8b3719e6b5488709f4efecde5a0d93
     hold: false
     dest: skills/aws
     accept_invalid: true
   - path: skills/core-skills/aws-iam
-    synced_sha: 4b8f1820ef4efa55bf3941191beec031f2681ae4
+    synced_sha: 8ea26bdf9c8b3719e6b5488709f4efecde5a0d93
     hold: false
     dest: skills/aws
     accept_invalid: true
   - path: skills/core-skills/aws-messaging-and-streaming
-    synced_sha: 4b8f1820ef4efa55bf3941191beec031f2681ae4
+    synced_sha: 8ea26bdf9c8b3719e6b5488709f4efecde5a0d93
     hold: false
     dest: skills/aws
     accept_invalid: true
@@ -390,7 +392,7 @@ sources:
     - PE3
     accept_invalid: true
   - path: skills/core-skills/aws-serverless
-    synced_sha: 4b8f1820ef4efa55bf3941191beec031f2681ae4
+    synced_sha: 8ea26bdf9c8b3719e6b5488709f4efecde5a0d93
     hold: false
     dest: skills/aws
     accept_findings:
@@ -438,11 +440,6 @@ sources:
     dest: skills/aws
     accept_findings:
     - TM1
-    accept_invalid: true
-  - path: skills/specialized-skills/ec2-skills/creating-ec2-image-builder-pipeline
-    synced_sha: f2feb0605635bdbeb47d289e9b8c4fe3e3ddb620
-    hold: false
-    dest: skills/aws
     accept_invalid: true
   - path: skills/specialized-skills/ec2-skills/launching-ec2-instance-with-best-practices
     synced_sha: 36f16570de2015c0f0ce94ba9e391bd703c9ffb7
@@ -531,6 +528,10 @@ sources:
     hold: false
     dest: skills/aws
     accept_invalid: true
+  - path: skills/specialized-skills/ec2-skills/amazon-ec2-image-builder
+    synced_sha: 8ea26bdf9c8b3719e6b5488709f4efecde5a0d93
+    hold: false
+    dest: skills/aws
 - repo: fluxcd/agent-skills
   ref: main
   watch:
@@ -539,7 +540,7 @@ sources:
   dest: skills/kubernetes
   skills:
   - path: skills/gitops-cluster-debug
-    synced_sha: dc7d150f335586f2dc396c3be8d1bdc708651525
+    synced_sha: 7fcbb9bc324e899771982009dc922e672a825d34
     hold: false
     dest: skills/kubernetes
     accept_findings:
@@ -547,7 +548,7 @@ sources:
     - RA1
     accept_invalid: true
   - path: skills/gitops-knowledge
-    synced_sha: dc7d150f335586f2dc396c3be8d1bdc708651525
+    synced_sha: 7fcbb9bc324e899771982009dc922e672a825d34
     hold: false
     dest: skills/kubernetes
     accept_findings:
@@ -555,7 +556,7 @@ sources:
     - RA1
     accept_invalid: true
   - path: skills/gitops-repo-audit
-    synced_sha: dc7d150f335586f2dc396c3be8d1bdc708651525
+    synced_sha: 7fcbb9bc324e899771982009dc922e672a825d34
     hold: false
     dest: skills/kubernetes
     accept_findings:
@@ -671,7 +672,7 @@ sources:
     dest: skills/iac
     accept_invalid: true
   - path: plugins/terraform/skills/refactor-module
-    synced_sha: 6333093c37a318cb800d57a6de7d0877a9e048a4
+    synced_sha: c2d65dfe492f74d360d35b859b88932222470bd8
     hold: false
     dest: skills/iac
     accept_invalid: true
@@ -756,7 +757,7 @@ sources:
   ignore: []
   skills:
   - path: pstack/skills/unslop
-    synced_sha: fd6dd6f7276956a532bb78a748a8d2818b6eb5f4
+    synced_sha: 93b00b89ef425a9c1bac0d0b317dfc49c930ac99
     hold: false
     dest: skills/productivity
 - repo: github/gh-stack
@@ -765,7 +766,7 @@ sources:
   ignore: []
   skills:
   - path: skills/gh-stack
-    synced_sha: ab00aa4a3f2dddc51aa65849c68b391a1b079311
+    synced_sha: 2bd699a544a09cb5c45a013d03416e0894b0454e
     hold: false
     dest: skills/engineering
     accept_invalid: true
