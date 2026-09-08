@@ -29,7 +29,9 @@ web artifacts, handing off context, and learning.
 | `perplexity-search` | Research current web information with the local Perplexity CLI through the direct API or OpenRouter. |
 | `show-me` | Explain the current topic visually instead of in prose: pseudocode, call trees, ASCII box/flow diagrams, type sketches, or a focused HTML artifact. Picks the smallest view that makes the point. *(humanlayer)* |
 | `teach` | Teach you a new skill or concept within this workspace. |
+| `to-questionnaire` | Turn a decision you cannot answer alone into a Markdown questionnaire for someone else to fill in. Interviews you only about the send — who it goes to and what you need back — then targets the gap between what they know and what you need. |
 | `unslop` | Cut AI tells from writing: puffery, AI vocabulary, em dashes, rule-of-three, inline-header lists, passive voice, filler. 31 numbered patterns plus an "add soul" pass (have opinions, vary rhythm, be specific). Overlaps `humanizer` — `unslop` is the terser checklist and bans em dashes outright. *(cursor)* |
+| `wait-what` | Stop the agent when its last message did not land and make it re-pitch: some context, ASD-STE100 Simplified Technical English, and the ubiquitous language from `CONTEXT.md`. User-invoked only. |
 | `web-artifacts-builder` | Build elaborate multi-component claude.ai HTML artifacts (React, Tailwind, shadcn/ui) — good for interactive web reports. *(anthropics)* |
 | `writing-great-skills` | Reference for writing and editing skills well. |
 
@@ -81,6 +83,14 @@ web artifacts, handing off context, and learning.
   SkillSpector scored it `0` / SAFE with zero findings (one markdown file, no scripts,
   no network calls).
 - `unslop` carries no overrides. Its folder name matches its frontmatter `name` and
+  SkillSpector scored it `0` / SAFE with zero findings (one markdown file, no scripts).
+- `to-questionnaire` carries `accept_findings: [AR1]`. `AR1` is a HIGH "Anti-Refusal
+  Statement" hit on the literal string *"always answer"* at `SKILL.md:9` — the sentence is
+  *"Interview the user only about the send, which they can always answer"*, a statement about
+  what the **user** is able to answer, not an instruction telling the agent never to refuse.
+  SkillSpector scored the skill `17` / LOW / SAFE. It ships one markdown file, no executable
+  scripts and no network calls.
+- `wait-what` carries no overrides. Its folder name matches its frontmatter `name` and
   SkillSpector scored it `0` / SAFE with zero findings (one markdown file, no scripts).
 
 ## Updating
