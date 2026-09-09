@@ -9,7 +9,7 @@ Engineering workflow skills vendored verbatim from several upstreams:
 - Personal — `ship`, `split-pr`, `ship-stack`, `pr-review`, `file-issue`, `clear-triage`, `cold-review`, `land-tickets`, `plan-status`, `start-ticket`, `cleanup-workspace`
 - Optiak standards — `optiak-behaviours`, `optiak-writing`, `optiak-tracker`
 
-These cover the build loop: design, plan-to-issues, implement, test, diagnose, build MCP
+These cover the build loop: design, plan-to-tickets, implement, test, diagnose, build MCP
 servers / skills, and the behavioral guidelines that keep changes surgical.
 
 ## Skills in this folder
@@ -45,10 +45,11 @@ servers / skills, and the behavioral guidelines that keep changes surgical.
 | `setup-matt-pocock-skills` | One-time repo setup for the mattpocock skills (issue tracker, triage labels, domain docs). |
 | `skill-creator` | Create/edit skills, run evals, benchmark performance, optimize descriptions. *(anthropics)* |
 | `tdd` | Test-driven development (red-green-refactor, integration tests). |
-| `to-issues` | Break a plan/spec/PRD into independently-grabbable issues (tracer-bullet slices). |
-| `to-prd` | Turn the current conversation into a PRD on the issue tracker. |
+| `to-spec` | Turn the current conversation into a spec on the issue tracker. |
+| `to-tickets` | Break a plan/spec/PRD into independently-grabbable tickets (tracer-bullet slices). |
 | `triage` | Move issues and external PRs through a triage state machine into agent-ready briefs. |
 | `webapp-testing` | Interact with and test local web apps via Playwright — verify UI, capture screenshots/logs. *(anthropics)* |
+| `wizard` | Generate an interactive bash wizard that walks a human through steps only they can do: opening a dashboard, copying a credential, writing it to `.env` or a GitHub secret. Ships `template.sh`, whose library you never hand-edit — you author only the stages. |
 
 > **Note:** `skill-creator` here is the generic anthropics toolkit (create/eval/benchmark);
 > there is also a separate Aily-specific `skill-creator` under `skills/aily/`. The two
@@ -61,7 +62,7 @@ servers / skills, and the behavioral guidelines that keep changes surgical.
   `mcp-builder`, `webapp-testing`, `skill-creator`, `gh-stack`) activate from their
   `description`.
 - **Explicit:** the mattpocock flow skills are `disable-model-invocation` — invoke them
-  yourself, e.g. *"use the `implement` skill"* or `/to-prd`. Start from `ask-matt` if
+  yourself, e.g. *"use the `implement` skill"* or `/to-spec`. Start from `ask-matt` if
   unsure which fits.
 - **First run:** `setup-matt-pocock-skills` configures the repo before first use of the
   mattpocock skills.
