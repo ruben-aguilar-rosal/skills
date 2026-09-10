@@ -40,8 +40,9 @@ a rule with no boundary gets applied where it does not belong, and then gets ign
 
 ## B1 — Comments that do not last
 
-**Rule.** Write a comment only for what will still be true in a year. Never narrate the
-change you are making.
+**Rule.** Default to no comment. Write one only when a reader would do the wrong thing
+without it, and only for what will still be true in a year. Never narrate the change you
+are making.
 
 **Why.** A comment that describes an edit becomes a lie as soon as the next edit lands.
 Nobody deletes it, because nobody can tell whether it still matters. The file then carries
@@ -68,8 +69,8 @@ costs you the comments that were worth reading.
 plausibly revert it. Explain the trap, not the history: *"`|| true`: a plain assignment
 from a failing command aborts under `set -e`."*
 
-**Check yourself.** Would this comment make sense to somebody opening the file for the
-first time, who knows nothing about your change? If not, delete it.
+**Check yourself.** Name the wrong move this comment prevents; no name, no comment. Then
+read it as a stranger to your change: delete what does not land.
 
 **Related.** `ponytail` (do not write what is not needed), `i-have-adhd` (lead with the
 point), `B6` (one meaning per word, short sentences), `B4` (this rule decides
