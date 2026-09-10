@@ -146,14 +146,13 @@ one caller's setup is simply wrong for the second caller.
 - The evidence for a decision at the length you gathered it. The measurement convinced
   you; the reader needs the conclusion and the command to re-check it.
 
-**Write instead.** Length in proportion to how surprising the fact is: a clause for a
-convention, a sentence for a trap, plus the check that tells a reader whether it still
-applies. The argument itself belongs in the pull request or in `FOLLOW-UPS.md`, both of
-which are read once, in context, and are expected to age.
+**Write instead.** One line. Two when one cannot hold it. Write your version, cut a line, read
+it again; keep the shorter one while the trap survives, and stop at the cut that loses it. The
+argument belongs in the pull request or in `FOLLOW-UPS.md`, both read once and expected to age.
 
 **Allowed.**
 
-- A genuinely non-obvious trap, at whatever length it takes to state — B1 asks for this.
+- A third line, when two already failed to hold the trap.
 - One canonical explanation of a decision someone would otherwise undo, in one place,
   with other sites pointing at it only if they must point at all.
 - A measured number where the number is the constraint: *"2s connect, 5s read: a wedged
